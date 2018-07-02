@@ -37,6 +37,8 @@ To initialize in production, simply set the ```production``` flag to ```True```.
 ``` rave = Rave("YOUR_PUBLIC_KEY", production=True)```
 
 # Rave Objects
+This is the documentation for all of the components of python_rave
+
 # Card -- rave.Card
 This is used to facilitate card transactions.
 
