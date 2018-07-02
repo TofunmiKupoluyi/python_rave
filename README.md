@@ -39,7 +39,7 @@ To initialize in production, simply set the ```production``` flag to ```True```.
 # Rave Objects
 This is the documentation for all of the components of python_rave
 
-# Card -- rave.Card
+# ```rave.Card```
 This is used to facilitate card transactions.
 
 **Functions included:**
@@ -198,7 +198,7 @@ print(success)
 
 
 
-# Account -- rave.Account 
+# ```rave.Account```
 This is used to facilitate account transactions.
 
 **Functions included:**
