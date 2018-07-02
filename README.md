@@ -54,6 +54,8 @@ This is used to facilitate card transactions.
 
 * ```.updatePayload```
 
+<br>
+
 ### ```.charge(payload)```
 This is called to start a card transaction. The payload should be a dictionary containing card information. It should have the parameters:
 
@@ -88,6 +90,7 @@ A sample call is:
 
 This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable indicates the suggested authentication method required to complete the charge call.
 
+<br>
 
 ### ```.updatePayload(authMethod, payload, arg)```
 
@@ -112,6 +115,8 @@ A typical address dictionary includes the following parameters:
 **Note:**
 ```suggestedAuth``` is the suggestedAuth returned from the initial charge call and ```payload``` is the original payload
 
+<br>
+
 ### ```.validate(txRef)```
 
 After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
@@ -126,6 +131,7 @@ You can access all rave exceptions by importing ```RaveExceptions``` from the pa
 
 ```from python_rave import RaveExceptions```
 
+<br>
 
 ### ```.verify(txRef)```
 
@@ -135,10 +141,7 @@ A sample verify call is:
 
 ``` success, data = rave.Card.verify(action["txRef"]) ```
 
-
-
-
-
+<br>
 
 ### Complete card charge flow
 
@@ -197,7 +200,7 @@ print(success)
 ```
 
 
-
+<br><br>
 ## ```rave.Account```
 This is used to facilitate account transactions.
 
@@ -209,6 +212,7 @@ This is used to facilitate account transactions.
 
 * ```.verify```
 
+<br>
 
 ### ```.charge(payload)```
 This is called to start an account transaction. The payload should be a dictionary containing card information. It should have the parameters:
@@ -236,6 +240,8 @@ A sample call is:
 
 This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call.
 
+<br>
+
 ### ```.validate(txRef)```
 
 After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
@@ -251,6 +257,7 @@ You can access all rave exceptions by importing ```RaveExceptions``` from the pa
 
 ```from python_rave import RaveExceptions```
 
+<br>
 
 ### ```.verify(txRef)```
 
@@ -260,6 +267,7 @@ A sample verify call is:
 
 ``` success, data = rave.Card.verify(data["txRef"]) ```
 
+<br>
 
 ### Complete account charge flow
 
