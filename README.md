@@ -39,7 +39,7 @@ To initialize in production, simply set the ```production``` flag to ```True```.
 # Rave Objects
 This is the documentation for all of the components of python_rave
 
-# ```rave.Card```
+## ```rave.Card```
 This is used to facilitate card transactions.
 
 **Functions included:**
@@ -54,7 +54,7 @@ This is used to facilitate card transactions.
 
 * ```.updatePayload```
 
-## ```.charge(payload)```
+### ```.charge(payload)```
 This is called to start a card transaction. The payload should be a dictionary containing card information. It should have the parameters:
 
 * ```cardno```,
@@ -89,7 +89,7 @@ A sample call is:
 This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable indicates the suggested authentication method required to complete the charge call.
 
 
-## ```.updatePayload(authMethod, payload, arg)```
+### ```.updatePayload(authMethod, payload, arg)```
 
 Depending on the suggestedAuth from the charge call, you may need to update the payload with a pin or address. To know which type of authentication you would require, simply call ```rave.Card.getTypeOfArgsRequired(suggestedAuth)```. This returns either ```pin``` or ```address```. 
 
@@ -112,7 +112,7 @@ A typical address dictionary includes the following parameters:
 **Note:**
 ```suggestedAuth``` is the suggestedAuth returned from the initial charge call and ```payload``` is the original payload
 
-## ```.validate(txRef)```
+### ```.validate(txRef)```
 
 After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
 
@@ -127,7 +127,7 @@ You can access all rave exceptions by importing ```RaveExceptions``` from the pa
 ```from python_rave import RaveExceptions```
 
 
-## ```.verify(txRef)```
+### ```.verify(txRef)```
 
 You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned from any of the calls (```charge``` or ```validate```). 
 
@@ -140,7 +140,7 @@ A sample verify call is:
 
 
 
-## Complete card charge flow
+### Complete card charge flow
 
 ```
 from python_rave import Rave
@@ -198,7 +198,7 @@ print(success)
 
 
 
-# ```rave.Account```
+## ```rave.Account```
 This is used to facilitate account transactions.
 
 **Functions included:**
@@ -210,7 +210,7 @@ This is used to facilitate account transactions.
 * ```.verify```
 
 
-## ```.charge(payload)```
+### ```.charge(payload)```
 This is called to start an account transaction. The payload should be a dictionary containing card information. It should have the parameters:
 
 * ```accountbank```, 
@@ -236,7 +236,7 @@ A sample call is:
 
 This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call.
 
-## ```.validate(txRef)```
+### ```.validate(txRef)```
 
 After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
 
@@ -252,7 +252,7 @@ You can access all rave exceptions by importing ```RaveExceptions``` from the pa
 ```from python_rave import RaveExceptions```
 
 
-## ```.verify(txRef)```
+### ```.verify(txRef)```
 
 You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned any of the calls (```charge``` or ```validate```). 
 
@@ -261,7 +261,7 @@ A sample verify call is:
 ``` success, data = rave.Card.verify(data["txRef"]) ```
 
 
-## Complete account charge flow
+### Complete account charge flow
 
 ```
 from python_rave import Rave, RaveExceptions, Misc
