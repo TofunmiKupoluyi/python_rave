@@ -40,6 +40,112 @@ To initialize in production, simply set the ```production``` flag to ```True```.
 # Rave Objects
 This is the documentation for all of the components of python_rave
 
+
+## ```rave.Account```
+This is used to facilitate account transactions.
+
+**Functions included:**
+
+* ```.charge```
+
+* ```.validate```
+
+* ```.verify```
+
+<br>
+
+### ```.charge(payload)```
+This is called to start an account transaction. The payload should be a dictionary containing card information. It should have the parameters:
+
+* ```accountbank```, 
+
+* ```accountnumber```, 
+
+* ```amount```, 
+
+* ```email```, 
+
+* ```phonenumber```, 
+
+* ```IP```
+
+Optionally, you can add a custom transaction reference using the ```txRef``` parameter. Note that if you do not specify one, it would be automatically generated. We do provide a function for generating transaction references in the Misc library (add link).
+
+
+A sample call is:
+
+``` furtherActionRequired, action, authUrl = rave.Account.charge(payload) ```
+
+#### Returns
+
+This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable is the authUrl (if one is required)
+
+<br>
+
+### ```.validate(txRef)```
+
+After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
+
+In the case that an authUrl is required, you may skip the validation step and simply pass your authUrl to the end-user.
+
+A sample validate call is: 
+
+```rave.Account.validate(action["txRef"])```
+
+
+#### Returns
+
+This call returns two responses. The first variable indicates whether further action is required and the second is the data returned from your call. Note if the card validation fails, we raise a ```TransactionValidationError```. 
+
+You can access all rave exceptions by importing ```RaveExceptions``` from the package, i.e.
+
+```from python_rave import RaveExceptions```
+
+<br>
+
+### ```.verify(txRef)```
+
+You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned any of the calls (```charge``` or ```validate```). 
+
+A sample verify call is:
+
+``` success, data = rave.Account.verify(data["txRef"]) ```
+
+<br>
+
+### Complete account charge flow
+
+```
+from python_rave import Rave, RaveExceptions, Misc
+rave = Rave("YOUR_PUBLIC KEY", "YOUR_SECRET_KEY", usingEnv = False)
+# account payload
+
+payload = {
+  "accountbank": "232",# get the bank code from the bank list endpoint.
+  "accountnumber": "0061333471",
+  "currency": "NGN",
+  "country": "NG",
+  "amount": "100",
+  "email": "test@test.com",
+  "phonenumber": "0902620185",
+  "IP": "355426087298442",
+}
+
+
+furtherActionRequired, action, authUrl = rave.Account.charge(payload)
+
+if furtherActionRequired:
+    if authUrl:
+        print(authUrl)
+    else:
+        rave.Account.validate(action["flwRef"], "12345")
+
+success, data = rave.Account.verify(action["txRef"])
+
+print(success)
+
+```
+<br><br>
 ## ```rave.Card```
 This is used to facilitate card transactions.
 
@@ -203,113 +309,6 @@ if furtherActionRequired:
 success, data, embedToken = rave.Card.verify(action["txRef"])
 
 print(data["card"]["card_tokens"][0]["embedtoken"]) # This is the cardToken in case you want to do preauth
-print(success)
-
-```
-
-
-<br><br>
-## ```rave.Account```
-This is used to facilitate account transactions.
-
-**Functions included:**
-
-* ```.charge```
-
-* ```.validate```
-
-* ```.verify```
-
-<br>
-
-### ```.charge(payload)```
-This is called to start an account transaction. The payload should be a dictionary containing card information. It should have the parameters:
-
-* ```accountbank```, 
-
-* ```accountnumber```, 
-
-* ```amount```, 
-
-* ```email```, 
-
-* ```phonenumber```, 
-
-* ```IP```
-
-Optionally, you can add a custom transaction reference using the ```txRef``` parameter. Note that if you do not specify one, it would be automatically generated. We do provide a function for generating transaction references in the Misc library (add link).
-
-
-A sample call is:
-
-``` furtherActionRequired, action, authUrl = rave.Account.charge(payload) ```
-
-#### Returns
-
-This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable is the authUrl (if one is required)
-
-<br>
-
-### ```.validate(txRef)```
-
-After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
-
-In the case that an authUrl is required, you may skip the validation step and simply pass your authUrl to the end-user.
-
-A sample validate call is: 
-
-```rave.Account.validate(action["txRef"])```
-
-
-#### Returns
-
-This call returns two responses. The first variable indicates whether further action is required and the second is the data returned from your call. Note if the card validation fails, we raise a ```TransactionValidationError```. 
-
-You can access all rave exceptions by importing ```RaveExceptions``` from the package, i.e.
-
-```from python_rave import RaveExceptions```
-
-<br>
-
-### ```.verify(txRef)```
-
-You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned any of the calls (```charge``` or ```validate```). 
-
-A sample verify call is:
-
-``` success, data = rave.Account.verify(data["txRef"]) ```
-
-<br>
-
-### Complete account charge flow
-
-```
-from python_rave import Rave, RaveExceptions, Misc
-rave = Rave("YOUR_PUBLIC KEY", "YOUR_SECRET_KEY", usingEnv = False)
-# account payload
-
-payload = {
-  "accountbank": "232",# get the bank code from the bank list endpoint.
-  "accountnumber": "0061333471",
-  "currency": "NGN",
-  "country": "NG",
-  "amount": "100",
-  "email": "test@test.com",
-  "phonenumber": "0902620185",
-  "IP": "355426087298442",
-}
-
-
-furtherActionRequired, action, authUrl = rave.Account.charge(payload)
-
-if furtherActionRequired:
-    if authUrl:
-        print(authUrl)
-    else:
-        rave.Account.validate(action["flwRef"], "12345")
-
-success, data = rave.Account.verify(action["txRef"])
-
 print(success)
 
 ```
