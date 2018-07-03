@@ -1,5 +1,5 @@
 import requests
-from python_rave.rave_exceptions import RaveError, IncompletePaymentDetailsError, TransactionVerificationError, TransactionValidationError, ServerError, PreauthInitializationError, PreauthCaptureError
+from python_rave.rave_exceptions import RaveError, IncompletePaymentDetailsError, TransactionVerificationError, TransactionValidationError, ServerError, PreauthInitializationError, PreauthCaptureError, PreauthRefundVoidError
 from python_rave.rave_payment import Payment
 from python_rave.rave_misc import generateTransactionReference
 class Preauth(Payment):
@@ -12,7 +12,104 @@ class Preauth(Payment):
     def __init__(self, publicKey, secretKey, encryptionKey, baseUrl, endpointMap=None):
         super(Preauth, self).__init__(publicKey, secretKey, encryptionKey, baseUrl, endpointMap)
 
+    def _handleChargeResponse(self, response, request=None):
+        """ This handles charge responses """ 
+        # If json is not parseable, there is a server error
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+        
+        # If it does not return a 200
+        if not response.ok:
+            raise PreauthInitializationError(responseJson["message"])
+        
+        # If it requires further authentication
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            return True, responseJson["data"], responseJson["data"].get("suggested_auth", None)
+        else:
+            return False, responseJson["data"], None
     
+    def _handleValidateResponse(self, response, request=None):
+        """ This handles validate responses """ 
+        # If json is not parseable, there is a server error
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+        
+        # If it does not return a 200
+        if not response.ok:
+            raise TransactionValidationError(responseJson["message"])
+        
+        # If it requires further authentication
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            raise TransactionValidationError(responseJson["data"]["tx"]["chargeResponseMessage"])
+        else:
+            return False, responseJson["data"]
+    
+    def _handleCaptureResponse(self, response, request=None):
+        """ This handles capture responses """ 
+        # If json is not parseable, there is a server error
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+        
+        # If it does not return a 200
+        if not response.ok:
+            raise PreauthCaptureError(responseJson["message"])
+        
+        # If it requires further authentication
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            return True, responseJson["data"]
+        else:
+            return False, responseJson["data"]
+    
+    def _handleRefundVoidResponse(self, response, request=None):
+        """ This handles capture responses """ 
+        # If json is not parseable, there is a server error
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+        
+        # If it does not return a 200
+        if not response.ok:
+           raise PreauthRefundVoidError(responseJson["message"])
+        
+        # If it requires further authentication
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            return True, responseJson["data"]
+        else:
+            return False, responseJson["data"]
+
+    # This can be altered by implementing classes but this is the default behaviour
+    # Returns True and the data if successful
+    def _handleVerify(self, response):
+        """ This handles all responses from the verify call.\n
+             Parameters include:\n
+            response (dict) -- This is the response Http object returned from the verify call
+         """
+
+        # Checking if there was a server error during the call (in this case html is returned instead of json)
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+
+        # Check if the call returned something other than a 200
+        if not response.ok:
+            raise TransactionVerificationError(responseJson.get("message", "Your call failed with no message"))
+        
+        # if the chargecode is not 00
+        elif not (responseJson["data"].get("chargecode", None) == "00"):
+            return False, responseJson["data"], responseJson["data"]["card"]["card_tokens"][0]["embedtoken"]
+        
+        else:
+            return True, responseJson["data"], responseJson["data"]["card"]["card_tokens"][0]["embedtoken"]
+            
+
     # Returns True if further is required, false if it is not
     def _handleResponses(self, response, endpoint, request=None):
         """ This handles the responses from charge and validate calls. Parameters are:\n
@@ -20,45 +117,15 @@ class Preauth(Payment):
             endpoint (string) -- This is the endpoint which we are handling\n
             request (dict) -- This is the request payload
         """
-         # This checks if we can parse the json successfully
-        try:
-            responseJson = response.json()
-        except:
-            raise ServerError(response)
-
-        # If response status is error, we raise an exception
-        # Checks what the endpoint is and models error raised accordingly
-        if not response.ok:
-            # If we are handling a charge call
-            if endpoint == (self._baseUrl + self._endpointMap["charge"]):
-                raise PreauthInitializationError(responseJson["message"])
-            
-            # If we are handling a validate call
-            elif endpoint == (self._baseUrl + self._endpointMap["validate"]):
-                raise TransactionValidationError(responseJson["message"])
-            
-            elif endpoint == (self._baseUrl + self._endpointMap["capture"]):
-                raise PreauthCaptureError(responseJson["message"])
-
-            else:
-                raise RaveError("Unknown error type")
-
-        elif responseJson["status"] == "success":
-            # If it is not successful after a validation attempt on bank account, we raise error -- has to be separate because the validate endpoint is strange
-            if endpoint == (self._baseUrl + self._endpointMap["validate"]):
-                if not (responseJson["data"]["tx"].get("chargeResponseCode", None) == "00"):
-                    # This is the error we raise, we get it from charge response message
-                    raise TransactionValidationError(responseJson["data"]["tx"]["chargeResponseMessage"])
-                else:
-                    return False, responseJson["data"]["tx"]
-
-            # Charge response code of 00 means successful, 02 means failed. Here we check if the code is not 00
-            if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-                # Otherwise we return that further action is required, along with the response
-                return True, responseJson["data"], responseJson["data"].get("suggested_auth", None)
-            else:
-                return False, responseJson["data"]
-
+        if(endpoint == self._baseUrl+ self._endpointMap["charge"]):
+            return self._handleChargeResponse(response)
+        elif(endpoint == self._baseUrl + self._endpointMap["validate"]):
+            return self._handleValidateResponse(response)
+        elif(endpoint == self._baseUrl + self._endpointMap["capture"]):
+            return self._handleCaptureResponse(response)
+        elif(endpoint == self._baseUrl + self._endpointMap["refundorvoid"]):
+            return self._handleRefundVoidResponse(response)
+        
 
     # Initiate preauth
     def preauth(self, cardDetails, hasFailed=False):

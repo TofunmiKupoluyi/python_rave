@@ -12,16 +12,7 @@ class Ussd(Payment):
         """
         super(Ussd, self).__init__(publicKey, secretKey, encryptionKey, baseUrl, endpointMap)
 
-    
-    # Returns True if further action is required, false if it is not
-    def _handleResponses(self, response, endpoint, request):
-        """ This handles the responses from charge and validate calls.\n
-             Parameters are:\n
-            response (Requests response object) -- This is the response object from requests\n
-            endpoint (string) -- This is the endpoint which we are handling\n
-            request (dict) -- This is the request payload
-        """
-        # Tentative bank list
+    def _handleChargeResponses(self, response, request):
         bankList = {"gtb": "058", "zenith": "057"}
         gtbResponseText = "To complete this transaction, please dial *737*50*charged_amount*159#"
         # This checks if we can parse the json successfully
@@ -30,27 +21,28 @@ class Ussd(Payment):
         except:
             raise ServerError(response)
 
-        # If response status is error, we raise an exception
-        # Checks what the endpoint is and models error raised accordingly
+        # If response code is not a 200
         if not response.ok:
             # If we are handling a charge call
             raise UssdChargeError(responseJson["message"])
 
-    
-
-        elif responseJson["status"] == "success":
-            # Charge response code of 00 means successful, 02 means failed. Here we check if the code is not 00
-            if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-                # If it is we return that further action is required
-                # If it is a gtbank account
-                if request["accountbank"] == bankList["gtb"]:
-                    return True, gtbResponseText
-                else:
-                    return True, responseJson["data"]["validateInstructions"]
-
-            # If a charge is successful, we return that further action is not required, along with the response
+        # Charge response code of 00 means successful, 02 means failed. Here we check if the code is not 00
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            # If it is we return that further action is required
+            # If it is a gtbank account
+            if request["accountbank"] == bankList["gtb"]:
+                return True, gtbResponseText
             else:
-                return False, responseJson["data"]
+                return True, responseJson["data"]["validateInstructions"]
+
+        # If a charge is successful, we return that further action is not required, along with the response
+        else:
+            return False, responseJson["data"]
+    
+    # Returns True if further action is required, false if it is not
+    def _handleResponses(self, response, endpoint, request):
+        if endpoint  == self._baseUrl + self._endpointMap["charge"]:
+            return self._handleChargeResponses(response, request)
 
 
     # Charge ussd function

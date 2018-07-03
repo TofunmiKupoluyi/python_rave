@@ -6,55 +6,63 @@ import json
 
 class Account(Payment):
     """ This is the rave object for account transactions. It contains the following public functions:\n
-        .charge -- This is for making a ussd charge\n
+        .charge -- This is for making an account charge\n
         .validate -- This is called if further action is required i.e. OTP validation\n
         .verify -- This checks the status of your transaction\n
     """
     def __init__(self, publicKey, secretKey, encryptionKey, baseUrl, endpointMap=None):
             super(Account, self).__init__(publicKey, secretKey, encryptionKey, baseUrl, endpointMap)
 
-    
-    # Returns True if further action is required, false if it is not
-    def _handleResponses(self, response, endpoint, request = None):
-        """ This handles the responses from charge and validate calls.
-             Parameters include:\n
-            response (Requests response object) -- This is the response object from requests\n
-            endpoint (string) -- This is the endpoint which we are handling\n
-            request (dict) -- This is the request payload
-        """
+
+    def _handleChargeResponse(self, response, request=None):
+        """ This handles account charge responses """
         # This checks if we can parse the json successfully
         try:
             responseJson = response.json()
         except:
             raise ServerError(response)
 
-        # If response status is error, we raise an exception
-        # Checks what the endpoint is and models error raised accordingly
+        # If it is not returning a 200
         if not response.ok:
-            # If we are handling a charge call
-            if endpoint == (self._baseUrl + self._endpointMap["charge"]):
-                raise AccountChargeError(responseJson["message"])
-
-            # If we are handling a validate call
-            elif endpoint == (self._baseUrl + self._endpointMap["validate"]):
-                raise TransactionValidationError(responseJson["message"])
-
+            raise AccountChargeError(responseJson["message"])
+        
+        # If all preliminary checks are passed
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            # If contains authurl
+            if not (responseJson["data"].get("authurl", "NO-URL") == "NO-URL"):
+                return True, responseJson["data"], responseJson["data"]["authurl"]
+            # If it doesn't
             else:
-                raise RaveError("Unknown error type")
+                return True, responseJson["data"], None
 
-        elif responseJson["status"] == "success":
-            # Charge response code of 00 means successful, 02 means failed. Here we check if the code is not 00
-            if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-                # If it is not successful (00) after a validation attempt on bank account, we raise error
-                if endpoint == (self._baseUrl + self._endpointMap["validate"]):
-                    # Used chargeResponseMessage
-                    raise TransactionValidationError(responseJson["data"]["chargeResponseMessage"])
-                # Otherwise we return that further action is required, along with the response
-                return True, responseJson["data"]
+        else:
+            return False, responseJson["data"], None
+    
 
-            # If a charge is successful, we return that further action is not required, along with the response
-            else:
-                return False, responseJson["data"]
+    def _handleValidateResponse(self, response, request=None):
+        """ This handles account validate responses """
+
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+
+        if not response.ok:
+            raise TransactionValidationError(responseJson["message"])
+        
+        # If all preliminary checks passed
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            raise TransactionValidationError(responseJson["data"]["chargeResponseMessage"])
+        else:
+            return False, responseJson["data"]
+
+
+    # Returns True if further action is required, false if it is not
+    def _handleResponses(self, response, endpoint, request = None):
+        if(endpoint == self._baseUrl+ self._endpointMap["charge"]):
+            return self._handleChargeResponse(response)
+        elif(endpoint == self._baseUrl + self._endpointMap["validate"]):
+            return self._handleValidateResponse(response)
 
 
     # Charge account function
