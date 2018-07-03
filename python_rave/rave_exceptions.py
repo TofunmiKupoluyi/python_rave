@@ -68,6 +68,12 @@ class PreauthCaptureError(RaveError):
         msg = "Your preauth capture call failed with message: \""+str(message)+"\""
         super(PreauthCaptureError, self).__init__(msg)
 
+class PreauthRefundVoidError(RaveError):
+    """ Raised when capturing a preauthorized refund/void transaction could not be completed """
+    def __init__(self, message):
+        msg = "Your preauth refund/void call failed with message: \""+str(message)+"\""
+        super(PreauthRefundVoidError, self).__init__(msg)
+
 class ServerError(RaveError):
     """ Raised when the server is down or when it could not process your request """
     def __init__(self, message):

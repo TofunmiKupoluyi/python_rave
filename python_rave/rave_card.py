@@ -4,57 +4,84 @@ from python_rave.rave_payment import Payment
 from python_rave.rave_misc import generateTransactionReference
 class Card(Payment):
     """ This is the rave object for card transactions. It contains the following public functions:\n
-        .charge -- This is for making a ussd charge\n
+        .charge -- This is for making a card charge\n
         .validate -- This is called if further action is required i.e. OTP validation\n
         .verify -- This checks the status of your transaction\n
     """
     def __init__(self, publicKey, secretKey, encryptionKey, baseUrl, endpointMap=None):
             super(Card, self).__init__(publicKey, secretKey, encryptionKey, baseUrl, endpointMap)
 
-    
-    # Returns True if further is required, false if it is not
-    def _handleResponses(self, response, endpoint, request=None):
-        """ This handles the responses from charge and validate calls.\n
-             Parameters include:\n
-            response (Requests response object) -- This is the response object from requests\n
-            endpoint (string) -- This is the endpoint which we are handling\n
-            request (dict) -- This is the request payload
-        """
-         # This checks if we can parse the json successfully
+
+    # returns true if further action is required, false if it isn't    
+    def _handleChargeResponse(self, response, request=None):
+        """ This handles charge responses """
         try:
             responseJson = response.json()
         except:
             raise ServerError(response)
 
-        # If response status is error, we raise an exception
-        # Checks what the endpoint is and models error raised accordingly
         if not response.ok:
-            # If we are handling a charge call
-            if endpoint == (self._baseUrl + self._endpointMap["charge"]):
-                raise CardChargeError(responseJson["message"])
-            
-            # If we are handling a validate call
-            elif endpoint == (self._baseUrl + self._endpointMap["validate"]):
-                raise TransactionValidationError(responseJson["message"])
+            # If response code is not a 200
+            raise CardChargeError(responseJson["message"])
+        
+        # If all preliminary checks passed
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            # Otherwise we return that further action is required, along with the response
+            return True, responseJson["data"], responseJson["data"].get("suggested_auth", None)
+        else:
+            return False, responseJson["data"], None
 
-            else:
-                raise RaveError("Unknown error type")
+    # returns true if further action is required, false if it isn't    
+    def _handleValidateResponse(self, response, request=None):
+        """ This handles validation responses """
+        # If json is not parseable, it means there is a problem in server
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
 
-        elif responseJson["status"] == "success":
-            # If it is not successful after a validation attempt on bank account, we raise error -- has to be separate because the validate endpoint is strange
-            if endpoint == (self._baseUrl + self._endpointMap["validate"]):
-                if not (responseJson["data"]["tx"].get("chargeResponseCode", None) == "00"):
-                    # This is the error we raise, we get it from charge response message
-                    raise TransactionValidationError(responseJson["data"]["tx"]["chargeResponseMessage"])
-                else:
-                    return False, responseJson["data"]["tx"]
+        # If response code is not a 200
+        if not response.ok:
+            raise TransactionValidationError(responseJson["message"])
 
-            # Charge response code of 00 means successful, 02 means failed. Here we check if the code is not 00
-            elif not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-                # Otherwise we return that further action is required, along with the response
-                return True, responseJson["data"], responseJson["data"].get("suggested_auth", None)
-            else:
-                return False, responseJson["data"]
+        # Of all preliminary checks passed
+        if not (responseJson["data"]["tx"].get("chargeResponseCode", None) == "00"):
+            raise TransactionValidationError(responseJson["data"]["tx"]["chargeResponseMessage"])
+        else:
+            return False, responseJson["data"]["tx"]
+    
+    # This can be altered by implementing classes but this is the default behaviour
+    # Returns True and the data if successful
+    def _handleVerify(self, response):
+        """ This handles all responses from the verify call.\n
+             Parameters include:\n
+            response (dict) -- This is the response Http object returned from the verify call
+         """
+
+        # Checking if there was a server error during the call (in this case html is returned instead of json)
+        try:
+            responseJson = response.json()
+        except:
+            raise ServerError(response)
+
+        # Check if the call returned something other than a 200
+        if not response.ok:
+            raise TransactionVerificationError(responseJson.get("message", "Your call failed with no message"))
+        
+        # if the chargecode is not 00
+        elif not (responseJson["data"].get("chargecode", None) == "00"):
+            return False, responseJson["data"], responseJson["data"]["card"]["card_tokens"][0]["embedtoken"]
+        
+        else:
+            return True, responseJson["data"], responseJson["data"]["card"]["card_tokens"][0]["embedtoken"]
+
+    # Created this map in case you want to carry out an action before you handle the responses,
+    # Also increases customizability, user can redefine the way responses are handled easily
+    def _handleResponses(self, response, endpoint, request=None):
+        if(endpoint == self._baseUrl+ self._endpointMap["charge"]):
+            return self._handleChargeResponse(response)
+        elif(endpoint == self._baseUrl + self._endpointMap["validate"]):
+            return self._handleValidateResponse(response)
 
 
     # Charge card function
