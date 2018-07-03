@@ -10,7 +10,8 @@ This is a Python wrapper around the [API](https://flutterwavedevelopers.readme.i
 * USSD Payments
 ## Installation
 To install, run
-```python -m pip install --index-url https://test.pypi.org/simple/ python_rave```
+
+``` pip install python_rave```
 
 Note: This is currently under active development
 ## Import Package
