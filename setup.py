@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="python_rave",
-    version="1.0.7-alpha",
+    version="1.0.8-alpha",
     author="Tofunmi Kupoluyi",
     author_email="tofunmi@flutterwavego.com",
     description="A python wrapper for Flutterwave's Rave",
