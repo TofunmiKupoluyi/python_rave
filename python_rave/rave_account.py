@@ -10,59 +10,37 @@ class Account(Payment):
         .validate -- This is called if further action is required i.e. OTP validation\n
         .verify -- This checks the status of your transaction\n
     """
-    def __init__(self, publicKey, secretKey, encryptionKey, baseUrl, endpointMap=None):
-            super(Account, self).__init__(publicKey, secretKey, encryptionKey, baseUrl, endpointMap)
+    def __init__(self, publicKey, secretKey, encryptionKey, baseUrl):
+            super(Account, self).__init__(publicKey, secretKey, encryptionKey, baseUrl)
 
 
-    def _handleChargeResponse(self, response, request=None):
+    def _handleChargeResponse(self, response, txRef, request=None):
         """ This handles account charge responses """
         # This checks if we can parse the json successfully
         try:
             responseJson = response.json()
+            flwRef = responseJson["data"].get("flwRef", None)
         except:
-            raise ServerError(response)
+            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
 
         # If it is not returning a 200
         if not response.ok:
-            raise AccountChargeError(responseJson["message"])
+            errMsg = responseJson["data"].get("message", None)
+            raise AccountChargeError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
         
         # If all preliminary checks are passed
         if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
             # If contains authurl
             if not (responseJson["data"].get("authurl", "NO-URL") == "NO-URL"):
-                return True, responseJson["data"], responseJson["data"]["authurl"]
+                authUrl = responseJson["data"].get("authurl", "NO-URL")
+                return {"error": False, "validationRequired": True, "txRef": txRef, "flwRef": flwRef, "authUrl": authUrl}
             # If it doesn't
             else:
-                return True, responseJson["data"], None
+                return {"error": False, "validationRequired": True, "txRef": txRef, "flwRef": flwRef, "authUrl": None}
 
         else:
-            return False, responseJson["data"], None
+            return {"error": False, "validationRequired": False, "txRef": txRef, "flwRef": flwRef, "authUrl": None}
     
-
-    def _handleValidateResponse(self, response, request=None):
-        """ This handles account validate responses """
-
-        try:
-            responseJson = response.json()
-        except:
-            raise ServerError(response)
-
-        if not response.ok:
-            raise TransactionValidationError(responseJson["message"])
-        
-        # If all preliminary checks passed
-        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-            raise TransactionValidationError(responseJson["data"]["chargeResponseMessage"])
-        else:
-            return False, responseJson["data"]
-
-
-    # Returns True if further action is required, false if it is not
-    def _handleResponses(self, response, endpoint, request = None):
-        if(endpoint == self._baseUrl+ self._endpointMap["charge"]):
-            return self._handleChargeResponse(response)
-        elif(endpoint == self._baseUrl + self._endpointMap["validate"]):
-            return self._handleValidateResponse(response)
 
 
     # Charge account function
@@ -72,6 +50,10 @@ class Account(Payment):
             accountDetails (dict) -- These are the parameters passed to the function for processing\n
             hasFailed (boolean) -- This is a flag to determine if the attempt had previously failed due to a timeout\n
         """
+
+        # setting the endpoint
+        endpoint = self._baseUrl + self._endpointMap["account"]["charge"]
+
         # If payment type is not defined or not set to account
         if not ("payment_type" in accountDetails) or not (accountDetails["payment_type"]== "account"):
             accountDetails.update({"payment_type": "account"})
@@ -79,4 +61,13 @@ class Account(Payment):
             accountDetails.update({"txRef": generateTransactionReference()})
         # Checking for required account components
         requiredParameters = ["accountbank", "accountnumber", "amount", "email", "phonenumber", "IP"]
-        return super(Account, self).charge(accountDetails, requiredParameters)
+        return super(Account, self).charge(accountDetails, requiredParameters, endpoint)
+
+    # Overriding occurs at name level python
+    def validate(self, flwRef, otp):
+        endpoint = self._baseUrl + self._endpointMap["account"]["validate"]
+        return super(Account, self).validate(flwRef, otp, endpoint)
+
+    def verify(self, txRef):
+        endpoint = self._baseUrl + self._endpointMap["account"]["verify"]
+        return super(Account, self).verify(txRef, endpoint)

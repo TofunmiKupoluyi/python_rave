@@ -4,81 +4,91 @@ class RaveError(Exception):
         super(RaveError, self).__init__(msg)
         pass
 
+# Non-Transaction related errors
 class IncompletePaymentDetailsError(RaveError):
     """ Raised when card details are incomplete """
     def __init__(self, value, requiredParameters):
         msg =  "\n\""+value+"\" was not defined in your dictionary. Please ensure you have supplied the following in the payload: \n "+'  \n '.join(requiredParameters)
         super(IncompletePaymentDetailsError, self).__init__(msg)
 
-class CardChargeError(RaveError):
-    """ Raised when card charge has failed """
-    def __init__(self, message):
-        msg = "\nYour card charge call failed with message: \""+str(message)+"\""
-        super(CardChargeError, self).__init__(msg)
 
-class AccountChargeError(RaveError):
-    """ Raised when account charge has failed """
-    def __init__(self, message):
-        msg = "\nYour account charge call failed with message: \""+str(message)+"\""
-        super(AccountChargeError, self).__init__(msg)
-
-class UssdChargeError(RaveError):
-    """ Raised when ussd charge has failed """
-    def __init__(self, message):
-        msg = "\nYour ussd charge call failed with message: \""+str(message)+"\""
-        super(UssdChargeError, self).__init__(msg)
-
-class GhMobileChargeError(RaveError):
-    """ Raised when ghana mobile money transaction has failed """
-    def __init__(self, message):
-        msg = "\nYour Ghana mobile money charge call failed with message: \""+str(message)+"\""
-        super(GhMobileChargeError, self).__init__(msg)
-
-class MpesaChargeError(RaveError):
-    """ Raised when mpesa transaction has failed """
-    def __init__(self, message):
-        msg = "\nYour Mpesa charge call failed with message: \""+str(message)+"\""
-        super(MpesaChargeError, self).__init__(msg)
 class AuthMethodNotSupportedError(RaveError):
     """ Raised when user requests for an auth method not currently supported by rave-python """
     def __init__(self, message):
         msg = "\n We do not currently support authMethod: \""+str(message)+"\". If you need this to be supported, please report in GitHub issues page"
         super(AuthMethodNotSupportedError, self).__init__(msg)
 
-class TransactionValidationError(RaveError):
-    """ Raised when validation (usually otp validation) fails """
-    def __init__(self, message):
-        msg = "Your transaction validate call failed with message: \""+str(message)+"\""
-        super(TransactionValidationError, self).__init__(msg)
+# Transaction related errors
+class CardChargeError(RaveError):
+    """ Raised when card charge has failed """
+    def __init__(self, err):
+        self.err = err
+    def __str__(self):
+        return "Your card charge call failed with message: "+self.err["errMsg"]
 
-class TransactionVerificationError(RaveError):
-    """ Raised when transaction could not be verified """
-    def __init__(self, message):
-        msg = "Your transaction verify call failed with message: \""+str(message)+"\""
-        super(TransactionVerificationError, self).__init__(msg)
+class AccountChargeError(RaveError):
+    """ Raised when account charge has failed """
+    def __init__(self, err):
+        self.err = err
+    def __str__(self):
+        return "Your account charge call failed with message: "+self.err["errMsg"]
 
-class PreauthInitializationError(RaveError):
-    """ Raised when preauth initialization has failed """
-    def __init__(self, message):
-        msg = "Your preauth initialization failed with message: \""+str(message)+"\""
-        super(PreauthInitializationError, self).__init__(msg)
+class UssdChargeError(RaveError):
+    """ Raised when ussd charge has failed """
+    def __init__(self, err):
+        self.err = err
+
+    def __str__(self):
+        return "Your ussd charge call failed with message: "+self.err["errMsg"]
+
 class PreauthCaptureError(RaveError):
     """ Raised when capturing a preauthorized transaction could not be completed """
-    def __init__(self, message):
-        msg = "Your preauth capture call failed with message: \""+str(message)+"\""
-        super(PreauthCaptureError, self).__init__(msg)
+    def __init__(self, err):
+        self.err = err
+        
+    def __str__(self):
+        return "Your preauth capture call failed with message: "+self.err["errMsg"]
 
 class PreauthRefundVoidError(RaveError):
     """ Raised when capturing a preauthorized refund/void transaction could not be completed """
-    def __init__(self, message):
-        msg = "Your preauth refund/void call failed with message: \""+str(message)+"\""
-        super(PreauthRefundVoidError, self).__init__(msg)
+    def __init__(self, err):
+        self.err = err
+        
+    def __str__(self):
+        return "Your preauth refund/void call failed with message: "+self.err["errMsg"]
+
+# Generic transaction errors
+class TransactionChargeError(RaveError):
+    """ Raised when a transaction charge has failed """
+    def __init__(self, err):
+        self.err = err
+    def __str__(self):
+        return "Your account charge call failed with message: "+self.err["errMsg"]
+
+class TransactionValidationError(RaveError):
+    """ Raised when validation (usually otp validation) fails """
+    def __init__(self, err):
+        self.err = err
+
+    def __str__(self):
+        return "Your transaction validation call failed with message: "+self.err["errMsg"]
+
+class TransactionVerificationError(RaveError):
+    """ Raised when transaction could not be verified """
+    def __init__(self, err):
+        self.err = err
+
+    def __str__(self):
+        return "Your transaction verification call failed with message: "+self.err["errMsg"]
+
 
 class ServerError(RaveError):
     """ Raised when the server is down or when it could not process your request """
-    def __init__(self, message):
-        msg = "Your request failed. Server replied with: "+message.content
-        super(ServerError, self).__init__(msg)
+    def __init__(self, err):
+        self.err = err
+        
+    def __str__(self):
+        return "Server is down with message: "+self.err["errMsg"]
 
 class RefundError(RaveError):
     """ Raised when refund fails """

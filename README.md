@@ -74,52 +74,93 @@ Optionally, you can add a custom transaction reference using the ```txRef``` par
 
 A sample call is:
 
-``` furtherActionRequired, action, authUrl = rave.Account.charge(payload) ```
+``` res = rave.Account.charge(payload) ```
 
 #### Returns
 
-This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable is the authUrl (if one is required)
+This call returns a dictionary. A sample response is:
+
+ ```{'error': False, 'validationRequired': True, 'txRef': 'MC-1530899106006', 'flwRef': 'ACHG-1530899109682', 'authUrl': None} ```
+
+ This call raises an ```AccountChargeError``` if there was a problem processing your transaction. The ```AccountChargeError``` contains some information about your transaction. You can handle this as such:
+
+```
+try: 
+    #Your charge call
+except RaveExceptions.AccountChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
+```
+
+A sample ``` e.err ``` contains:
+
+```{'error': True, 'txRef': 'MC-1530897824739', 'flwRef': None, 'errMsg': 'Sorry, that account number is invalid, please check and try again'}```
 
 <br>
 
 ### ```.validate(txRef)```
 
-After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
+After a successful charge, most times you will be asked to verify with OTP. To check if this is required, check the ```validationRequired``` key in the ```res``` of the charge call.
 
-In the case that an authUrl is required, you may skip the validation step and simply pass your authUrl to the end-user.
+In the case that an ```authUrl``` is returned from your charge call, you may skip the validation step and simply pass your authUrl to the end-user. 
+
+```authUrl = res['authUrl'] ```
+
+To validate, you need to pass the ```flwRef``` from the ```res``` of the charge call as well as the OTP.
 
 A sample validate call is: 
 
-```rave.Account.validate(action["txRef"])```
+```res2 = rave.Account.validate(res["flwRef"], "12345")```
 
 
 #### Returns
 
-This call returns two responses. The first variable indicates whether further action is required and the second is the data returned from your call. Note if the card validation fails, we raise a ```TransactionValidationError```. 
+This call returns a dictionary containing the ```txRef```, ```flwRef``` among others if successful.
 
-You can access all rave exceptions by importing ```RaveExceptions``` from the package, i.e.
+This call raises a ```TransactionValidationError``` if the OTP is not correct or there was a problem processing your request. 
 
-```from python_rave import RaveExceptions```
+To handle this, write:
+
+```
+try:
+    # Your charge call
+except RaveExceptions.TransactionValidationError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
+```
+
+A sample ``` e.err ``` contains:
+
+```{'error': True, 'txRef': 'MC-1530899869968', 'flwRef': 'ACHG-1530899873118', 'errMsg': 'Pending OTP validation'}```
+
+
 
 <br>
 
 ### ```.verify(txRef)```
 
-You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned any of the calls (```charge``` or ```validate```). 
+You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```res``` parameter returned any of the calls (```charge``` or ```validate```). 
 
 A sample verify call is:
 
-``` success, data = rave.Account.verify(data["txRef"]) ```
+``` res = rave.Account.verify(data["txRef"]) ```
+
+#### Returns
+
+This call returns a dict with ```txRef```, ```flwRef``` and ```transactionComplete``` which indicates whether the transaction was completed successfully. 
+
+If your call could not be completed successfully, a ```TransactionVerificationError``` is raised.
+
+
 
 <br>
 
-### Complete account charge flow
+### Complete account flow
 
 ```
 from python_rave import Rave, RaveExceptions, Misc
-rave = Rave("YOUR_PUBLIC KEY", "YOUR_SECRET_KEY", usingEnv = False)
+rave = Rave("ENTER_YOUR_PUBLIC_KEY", "ENTER_YOUR_SECRET_KEY", usingEnv = False)
 # account payload
-
 payload = {
   "accountbank": "232",# get the bank code from the bank list endpoint.
   "accountnumber": "0061333471",
@@ -131,18 +172,29 @@ payload = {
   "IP": "355426087298442",
 }
 
+try:
+    res = rave.Account.charge(payload)
+    if res["authUrl"]:
+        print(res["authUrl"])
 
-furtherActionRequired, action, authUrl = rave.Account.charge(payload)
+    elif res["validationRequired"]:
+        rave.Account.validate(res["flwRef"], "1234")
 
-if furtherActionRequired:
-    if authUrl:
-        print(authUrl)
-    else:
-        rave.Account.validate(action["flwRef"], "12345")
+    res = rave.Account.verify(res["txRef"])
+    print(res)
 
-success, data = rave.Account.verify(action["txRef"])
+except RaveExceptions.AccountChargeError as e:
+    print(e.err)
+    print(e.err["flwRef"])
 
-print(success)
+except RaveExceptions.TransactionValidationError as e:
+    print(e.err)
+    print(e.err["flwRef"])
+
+except RaveExceptions.TransactionVerificationError as e:
+    print(e.err["errMsg"])
+    print(e.err["txRef"])
+
 
 ```
 <br><br>
@@ -191,15 +243,31 @@ Optionally, you can add a custom transaction reference using the ```txRef``` par
 
 A sample call is:
 
-``` furtherActionRequired, action, suggestedAuth = rave.Card.charge(payload) ```
+``` res = rave.Card.charge(payload) ```
 
 #### Returns
 
-This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable indicates the suggested authentication method required to complete the charge call.
+This call returns a dictionary. A sample response is:
+
+ ```{'error': False, 'validationRequired': True, 'txRef': 'MC-1530899106006', 'flwRef': 'ACHG-1530899109682', 'suggestedAuth': None} ```
+
+ This call raises an ```CardChargeError``` if there was a problem processing your transaction. The ```CardChargeError``` contains some information about your transaction. You can handle this as such:
+
+```
+try: 
+    #Your charge call
+except RaveExceptions.CardChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
+```
+
+A sample ``` e.err ``` contains:
+
+```{'error': True, 'txRef': 'MC-1530897824739', 'flwRef': None, 'errMsg': 'Sorry, that card number is invalid, please check and try again'}```
 
 <br>
 
-### ```.updatePayload(authMethod, payload, arg)```
+### ```rave.Misc.updatePayload(authMethod, payload, arg)```
 
 Depending on the suggestedAuth from the charge call, you may need to update the payload with a pin or address. To know which type of authentication you would require, simply call ```rave.Card.getTypeOfArgsRequired(suggestedAuth)```. This returns either ```pin``` or ```address```. 
 
@@ -226,90 +294,101 @@ A typical address dictionary includes the following parameters:
 
 ### ```.validate(txRef)```
 
-After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Card validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
+After a successful charge, most times you will be asked to verify with OTP. To check if this is required, check the ```validationRequired``` key in the ```res``` of the charge call.
+
+To validate, you need to pass the ```flwRef``` from the ```res``` of the charge call as well as the OTP.
 
 A sample validate call is: 
 
-```rave.Card.validate(action["txRef"])```
+```res2 = rave.Card.validate(res["flwRef"], "12345")```
 
 #### Returns
 
-This call returns two responses. The first variable indicates whether further action is required and the second is the data returned from your call. Note if the card validation fails, we raise a ```TransactionValidationError```. 
+This call returns a dictionary containing the ```txRef```, ```flwRef``` among others if successful.
 
-You can access all rave exceptions by importing ```RaveExceptions``` from the package, i.e.
+This call raises a ```TransactionValidationError``` if the OTP is not correct or there was a problem processing your request. 
 
-```from python_rave import RaveExceptions```
+To handle this, write:
+
+```
+try:
+    # Your charge call
+except RaveExceptions.TransactionValidationError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
+```
+
+A sample ``` e.err ``` contains:
+
+```{'error': True, 'txRef': None, 'flwRef': 'FLW-MOCK-a7911408bd7f55f89f0211819d6fd370', 'errMsg': 'otp is required'}```
 
 <br>
 
 ### ```.verify(txRef)```
 
-You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned from any of the calls (```charge``` or ```validate```). 
+You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```res``` parameter returned any of the calls (```charge``` or ```validate```). 
 
 A sample verify call is:
 
-``` success, data, embedToken = rave.Card.verify(action["txRef"]) ```
+``` res = rave.Card.verify(data["txRef"]) ```
 
-<br>
+#### Returns
+
+This call returns a dict with ```txRef```, ```flwRef``` and ```transactionComplete``` which indicates whether the transaction was completed successfully. 
+
+If your call could not be completed successfully, a ```TransactionVerificationError``` is raised.
 
 ### Complete card charge flow
 
 ```
+
 from python_rave import Rave
 rave = Rave("YOUR_PUBLIC_KEY", "YOUR_SECRET_KEY", usingEnv = False)
+
 # Payload with pin
 payload = {
   "cardno": "5438898014560229",
   "cvv": "890",
   "expirymonth": "09",
   "expiryyear": "19",
-  "currency": "NGN",
-  "country": "NG",
   "amount": "10",
   "email": "user@gmail.com",
   "phonenumber": "0902620185",
   "firstname": "temi",
   "lastname": "desola",
   "IP": "355426087298442",
-  "redirect_url": "https://rave-webhook.herokuapp.com/receivepayment",
-  "device_fingerprint": "69e6b7f0b72037aa8428b70fbe03986c",
 }
 
+try:
+    res = rave.Card.charge(payload)
 
-furtherActionRequired, action, suggestedAuth = rave.Card.charge(payload)
+    if res["suggestedAuth"]:
+        arg = Misc.getTypeOfArgsRequired(res["suggestedAuth"])
 
-if furtherActionRequired:
-    # If suggested auth is in the response, it means the payload was not complete, we've provided a handy updatePayload method that can help verify your completed payload
-
-    # Using updatePayload will also maintain the transaction reference
-
-    if suggestedAuth:
-
-        # get type of args required returns either pin or address. the way each are responded to are displayed below
-
-        authType = rave.Card.getTypeOfArgsRequired(suggestedAuth)
-
-        # Tailor update payload based on authType
-
-        if authType == "pin":
-            rave.Card.updatePayload(suggestedAuth, payload, pin="3310")
-        if authType == "address":
-            rave.Card.updatePayload(suggestedAuth, payload, address={"billingzip": "07205", "billingcity": "Hillside", "billingaddress": "470 Mundet PI", "billingstate": "NJ", "billingcountry": "US"})
+        if arg == "pin":
+            Misc.updatePayload(res["suggestedAuth"], payload, pin="3310")
+        if arg == "address":
+            Misc.updatePayload(res["suggestedAuth"], payload, address= {"billingzip": "07205", "billingcity": "Hillside", "billingaddress": "470 Mundet PI", "billingstate": "NJ", "billingcountry": "US"})
         
-        # Recall card charge
+        res = rave.Card.charge(payload)
 
-        furtherActionRequired, action, suggestedAuth = rave.Card.charge(payload)
+    if res["validationRequired"]:
+        rave.Card.validate(res["flwRef"], "")
 
-    if furtherActionRequired:
-        # Card validation: throws error with incomplete validation
-        rave.Card.validate(action["flwRef"], "123455")
+    res = rave.Card.verify(res["txRef"])
+    print(res["transactionComplete"])
 
+except RaveExceptions.CardChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
 
+except RaveExceptions.TransactionValidationError as e:
+    print(e.err)
+    print(e.err["flwRef"])
 
-success, data, embedToken = rave.Card.verify(action["txRef"])
-
-print(data["card"]["card_tokens"][0]["embedtoken"]) # This is the cardToken in case you want to do preauth
-print(success)
+except RaveExceptions.TransactionVerificationError as e:
+    print(e.err["errMsg"])
+    print(e.err["txRef"])
 
 ```
 
@@ -342,21 +421,45 @@ Optionally, you can add a custom transaction reference using the ```txRef``` par
 
 A sample call is:
 
-``` furtherActionRequired, action = rave.Mpesa.charge(payload) ```
+``` res = rave.Mpesa.charge(payload) ```
 
 #### Returns
 
-This call returns two responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call.
+This call returns a dictionary. A sample response is:
+
+ ```{'error': False, 'validationRequired': True, 'txRef': 'MC-1530910216380', 'flwRef': 'N/A'} ```
+
+ This call raises an ```TransactionChargeError``` if there was a problem processing your transaction. The ```TransactionChargeError``` contains some information about your transaction. You can handle this as such:
+
+```
+try: 
+    #Your charge call
+except RaveExceptions.TransactionChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
+
+```
+
+A sample ``` e.err ``` contains:
+
+```{'error': True, 'txRef': 'MC-1530910109929', 'flwRef': None, 'errMsg': 'email is required'}```
+
 
 <br>
 
 ### ```.verify(txRef)```
 
-You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned any of the calls (```charge``` or ```validate```). 
+You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```res``` parameter returned any of the calls (```charge``` or ```validate```). 
 
 A sample verify call is:
 
-``` success, data = rave.Mpesa.verify(data["txRef"]) ```
+``` res = rave.Mpesa.verify(data["txRef"]) ```
+
+#### Returns
+
+This call returns a dict with ```txRef```, ```flwRef``` and ```transactionComplete``` which indicates whether the transaction was completed successfully. 
+
+If your call could not be completed successfully, a ```TransactionVerificationError``` is raised.
 
 <br>
 
@@ -364,7 +467,7 @@ A sample verify call is:
 
 ```
 from python_rave import Rave, RaveExceptions, Misc
-rave = Rave("YOUR_PUBLIC KEY", "YOUR_SECRET_KEY", usingEnv = False)
+rave = Rave("ENTIRE_YOUR_PUBLIC_KEY", "ENTIRE_YOUR_SECRET_KEY", usingEnv = False)
 
 # mobile payload
 payload = {
@@ -375,12 +478,19 @@ payload = {
     "narration": "funds payment",
 }
 
+try:
+    res = rave.Mpesa.charge(payload)
+    res = rave.Mpesa.verify(res["txRef"])
+    print(res)
 
-furtherActionRequired, action = rave.Mpesa.charge(payload)
-print(action)
-success, data = rave.Mpesa.verify(action["txRef"])
+except RaveExceptions.TransactionChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
 
-print(success)
+except RaveExceptions.TransactionVerificationError as e:
+    print(e.err["errMsg"])
+    print(e.err["txRef"])
+
 
 ```
 
@@ -418,21 +528,45 @@ Optionally, you can add a custom transaction reference using the ```txRef``` par
 
 A sample call is:
 
-``` furtherActionRequired, action = rave.GhMobile.charge(payload) ```
+``` res = rave.GhMobile.charge(payload) ```
 
 #### Returns
 
-This call returns two responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call.
+This call returns a dictionary. A sample response is:
+
+ ```{'error': False, 'validationRequired': True, 'txRef': 'MC-1530910216380', 'flwRef': 'N/A'} ```
+
+ This call raises an ```TransactionChargeError``` if there was a problem processing your transaction. The ```TransactionChargeError``` contains some information about your transaction. You can handle this as such:
+
+```
+try: 
+    #Your charge call
+except RaveExceptions.TransactionChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
+
+```
+
+A sample ``` e.err ``` contains:
+
+```{'error': True, 'txRef': 'MC-1530911537060', 'flwRef': None, 'errMsg': None}```
+
 
 <br>
 
 ### ```.verify(txRef)```
 
-You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned any of the calls (```charge``` or ```validate```). 
+You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```res``` parameter returned any of the calls (```charge``` or ```validate```). 
 
 A sample verify call is:
 
-``` success, data = rave.GhMobile.verify(data["txRef"]) ```
+``` res = rave.GhMobile.verify(data["txRef"]) ```
+
+#### Returns
+
+This call returns a dict with ```txRef```, ```flwRef``` and ```transactionComplete``` which indicates whether the transaction was completed successfully. 
+
+If your call could not be completed successfully, a ```TransactionVerificationError``` is raised.
 
 <br>
 
@@ -440,24 +574,31 @@ A sample verify call is:
 
 ```
 from python_rave import Rave, RaveExceptions, Misc
-rave = Rave("YOUR_PUBLIC KEY", "YOUR_SECRET_KEY", usingEnv = False)
+rave = Rave("ENTER_YOUR_PUBLIC_KEY", "ENTER_YOUR_SECRET_KEY", usingEnv = False)
 
 # mobile payload
 payload = {
   "amount": "50",
-  "email": "user@example.com",
+  "email": "",
   "phonenumber": "054709929220",
   "network": "MTN",
   "redirect_url": "https://rave-webhook.herokuapp.com/receivepayment",
   "IP":""
 }
 
+try:
+  res = rave.GhMobile.charge(payload)
+  res = rave.GhMobile.verify(res["txRef"])
+  print(res)
 
-furtherActionRequired, action = rave.GhMobile.charge(payload)
+except RaveExceptions.TransactionChargeError as e:
+  print(e.err)
+  print(e.err["flwRef"])
 
-success, data = rave.GhMobile.verify(action["txRef"])
+except RaveExceptions.TransactionVerificationError as e:
+  print(e.err["errMsg"])
+  print(e.err["txRef"])
 
-print(success)
 
 ```
 
@@ -546,7 +687,7 @@ print(success)
 
 <br><br>
 ## ```rave.Preauth```
-This is used to facilitate preauthorized card transactions.
+This is used to facilitate preauthorized card transactions. This inherits the Card class so any task you can do on Card, you can do with preauth.
 
 **Functions included:**
 
@@ -562,94 +703,7 @@ This is used to facilitate preauthorized card transactions.
 
 <br>
 
-### ```.charge(payload)```
-This is called to start a preauthorized card transaction. The payload should be a dictionary containing card information. It should have the parameters:
 
-* ```cardno```,
-
-* ```cvv```, 
-
-* ```expirymonth```, 
-
-* ```expiryyear```, 
-
-* ```amount```, 
-
-* ```email```, 
-
-* ```phonenumber```,
-
-* ```firstname```, 
-
-* ```lastname```, 
-
-* ```IP```
-
-Optionally, you can add a custom transaction reference using the ```txRef``` parameter. Note that if you do not specify one, it would be automatically generated. We do provide a function for generating transaction references in the Misc library (add link).
-
-
-A sample call is:
-
-``` furtherActionRequired, action, suggestedAuth = rave.Preauth.preauth(payload) ```
-
-#### Returns
-
-This call returns three responses. The first variable indicates whether further action is required to complete the transaction. The second variable is what was returned from the server on the call. The third variable indicates the suggested authentication method required to complete the charge call.
-
-<br>
-
-### ```.updatePayload(authMethod, payload, arg)```
-
-Depending on the suggestedAuth from the charge call, you may need to update the payload with a pin or address. To know which type of authentication you would require, simply call ```rave.Preauth.getTypeOfArgsRequired(suggestedAuth)```. This returns either ```pin``` or ```address```. 
-
-In the case of ```pin```, you are required to call ```rave.Preauth.updatePayload(suggestedAuth, payload, pin="THE_CUSTOMER_PIN")```. 
-
-In the case of ```address```, you are required to call ```rave.Preauth.updatePayload(suggestedAuth, payload, address={ THE_ADDRESS_DICTIONARY })```
-
-A typical address dictionary includes the following parameters:
-
-```billingzip```, 
-
-```billingcity```,
-
-```billingaddress```, 
- 
-```billingstate```,
- 
-```billingcountry```
-
-**Note:**
-```suggestedAuth``` is the suggestedAuth returned from the initial charge call and ```payload``` is the original payload
-
-<br>
-
-### ```.validate(txRef)```
-
-After a successful charge, most times you will be asked to verify with OTP. To do this, you need to call the Preauth validate call and pass the ```flwRef```. The flwRef can be gotten from the by searching for the ```flwRef``` in the ```action``` (second returned variable) of the initial charge call. 
-
-A sample validate call is: 
-
-```rave.Preauth.validate(action["txRef"])```
-
-#### Returns
-
-This call returns two responses. The first variable indicates whether further action is required and the second is the data returned from your call. Note if the card validation fails, we raise a ```TransactionValidationError```. 
-
-You can access all rave exceptions by importing ```RaveExceptions``` from the package, i.e.
-
-```from python_rave import RaveExceptions```
-
-<br>
-
-### ```.verify(txRef)```
-
-You can call this to check if your transaction was completed successfully. You have to pass the transaction reference generated at the point of charging. This is the ```txRef``` in the ```action``` parameter returned from any of the calls (```charge``` or ```validate```). 
-
-A sample verify call is:
-
-``` success, data = rave.Preauth.verify(action["txRef"]) ```
-
-<br>
 
 ### ```.capture(flwRef)```
 
@@ -690,61 +744,52 @@ A sample capture call is:
 ```
 from python_rave import Rave
 rave = Rave("YOUR_PUBLIC_KEY", "YOUR_SECRET_KEY", usingEnv = False)
+
 # Payload with pin
 payload = {
-  "cardno": "5438898014560229",
+  "cardno": "4751763236699647",
   "cvv": "890",
   "expirymonth": "09",
-  "expiryyear": "19",
-  "currency": "NGN",
-  "country": "NG",
+  "expiryyear": "21",
   "amount": "10",
   "email": "user@gmail.com",
   "phonenumber": "0902620185",
   "firstname": "temi",
   "lastname": "desola",
   "IP": "355426087298442",
-  "redirect_url": "https://rave-webhook.herokuapp.com/receivepayment",
-  "device_fingerprint": "69e6b7f0b72037aa8428b70fbe03986c",
 }
 
+try:
+    res = rave.Preauth.charge(payload)
 
-furtherActionRequired, action, suggestedAuth = rave.Preauth.preauth(payload)
+    if res["suggestedAuth"]:
+        arg = Misc.getTypeOfArgsRequired(res["suggestedAuth"])
 
-if furtherActionRequired:
-
-    # If suggested auth is in the response, it means the payload was not complete, we've provided a handy updatePayload method that can help verify your completed payload
-    # Using updatePayload will also maintain the transaction reference
-
-    if suggestedAuth:
-
-        # get type of args required returns either pin or address. the way each are responded to are displayed below
-
-        authType = rave.Preauth.getTypeOfArgsRequired(suggestedAuth)
-
-        # Tailor update payload based on authType
-
-        if authType == "pin":
-            rave.Preauth.updatePayload(suggestedAuth, payload, pin="3310")
-        if authType == "address":
-
-            rave.Preauth.updatePayload(suggestedAuth, payload, address={"billingzip": "07205", "billingcity": "Hillside", "billingaddress": "470 Mundet PI", "billingstate": "NJ", "billingcountry": "US"})
+        if arg == "pin":
+            Misc.updatePayload(res["suggestedAuth"], payload, pin="3310")
+        if arg == "address":
+            Misc.updatePayload(res["suggestedAuth"], payload, address= {"billingzip": "07205", "billingcity": "Hillside", "billingaddress": "470 Mundet PI", "billingstate": "NJ", "billingcountry": "US"})
         
-        # Recall preauth 
-        furtherActionRequired, action, suggestedAuth = rave.Preauth.preauth(payload)
+        res = rave.Preauth.charge(payload)
 
-    if furtherActionRequired:
-        success, data = rave.Preauth.verify(action["txRef"])
-        # Preauth validation: throws error with incomplete validation
-        rave.Preauth.validate(action["flwRef"], "123455")
+    if res["validationRequired"]:
+        rave.Preauth.validate(res["flwRef"], "12345")
 
+    res = rave.Preauth.capture(res["flwRef"])
+    res = rave.Preauth.verify(res["txRef"])
+    print(res["transactionComplete"])
 
+except RaveExceptions.CardChargeError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
 
-success, data, embedToken = rave.Preauth.verify(action["txRef"])
+except RaveExceptions.TransactionValidationError as e:
+    print(e.err["errMsg"])
+    print(e.err["flwRef"])
 
-print(embedToken) # This is the cardToken in case you want to do preauth
-
-rave.Preauth.capture(data["flwRef"]) # To capture
+except RaveExceptions.TransactionVerificationError as e:
+    print(e.err["errMsg"])
+    print(e.err["txRef"])
 
 
 ```
