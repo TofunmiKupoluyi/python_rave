@@ -1,59 +1,40 @@
 import requests, json, copy
-from python_rave.rave_encryption import RaveEncryption 
-from python_rave.rave_exceptions import RaveError, IncompletePaymentDetailsError, AuthMethodNotSupportedError, TransactionVerificationError, ServerError
+from python_rave.rave_base import RaveBase
+from python_rave.rave_exceptions import RaveError, IncompletePaymentDetailsError, AuthMethodNotSupportedError, TransactionChargeError, TransactionVerificationError, TransactionValidationError, ServerError, RefundError
+from python_rave.rave_misc import checkIfParametersAreComplete
 
 # All payment subclasses are encrypted classes
-class Payment(RaveEncryption):
+class Payment(RaveBase):
     """ This is the base class for all the payments """
-    def __init__(self, publicKey, secretKey, encryptionKey, baseUrl, endpointMap=None):
-        if (publicKey and encryptionKey):
+    def __init__(self, publicKey, secretKey, production, usingEnv):
+        # Instantiating the base class
+        super(Payment, self).__init__(publicKey, secretKey, production, usingEnv)
 
-            # Instantiating the encrytion library and creating encryption member object (protected)
-            super(Payment, self).__init__(encryptionKey)
-            
-            # Setting public key and secret key (private)
-            self.__publicKey = publicKey
-            self.__secretKey = secretKey
 
-            # Setting base url and endpoint map, important for payment functions (protected)
-            self._baseUrl = baseUrl
-            self._endpointMap = endpointMap
+    def _handleChargeResponse(self, response, txRef, request=None):
+        """ This handles transaction charge responses """
+        # If we cannot parse the json, it means there is a server error
+        try:
+            responseJson = response.json()
+            flwRef = responseJson["data"].get("flwRef", None)
+        except:
+            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
+
+        # If it is not returning a 200
+        if not response.ok:
+            errMsg = responseJson["data"].get("message", None)
+            raise TransactionChargeError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
         
+        # if all preliminary tests pass
+        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
+            return {"error": False,  "validationRequired": True, "txRef": txRef, "flwRef": flwRef}
         else:
-            raise ValueError("Please supply an accurate public key and/or encryption key.")
+            return {"error": False,  "validationRequired": False, "txRef": txRef, "flwRef": flwRef}
 
-    # Retrieves secret key
-    def _getSecretKey(self):
-        """ This returns the secret key """
-        return self.__secretKey
-    # Retrieves public key
-    def _getPublicKey(self):
-        """ This returns the public key """
-        return self.__publicKey
-
-    # If parameters are complete, returns true. If not returns false with parameter missing
-    def _checkIfParametersAreComplete(self, requiredParameters, paymentDetails):
-        """ THis returns true/false depending on if the paymentDetails match the required parameters """
-        for i in requiredParameters:
-            if i not in paymentDetails:
-                return False, i
-        return True, None
-
-
-    # This handles the transaction responses, defined by the implementing classes
-    # Returns True if further action is required, false if it is not
-    def _handleResponses(self, response, endpoint, request=None):
-        """ This handles the responses from charge and validate calls.\n
-             Parameters are:\n
-            response (Requests response object) -- This is the response object from requests\n
-            endpoint (string) -- This is the endpoint which we are handling\n
-            request (dict) -- This is the request payload
-        """
-        pass
 
     # This can be altered by implementing classes but this is the default behaviour
     # Returns True and the data if successful
-    def _handleVerify(self, response):
+    def _handleVerifyResponse(self, response, txRef):
         """ This handles all responses from the verify call.\n
              Parameters include:\n
             response (dict) -- This is the response Http object returned from the verify call
@@ -62,40 +43,56 @@ class Payment(RaveEncryption):
         # Checking if there was a server error during the call (in this case html is returned instead of json)
         try:
             responseJson = response.json()
+            flwRef = responseJson["data"].get("flwRef", None)
+
+            # Weird response returned from API call so we have to deal with this specially
+            if not flwRef:
+                flwRef = responseJson["data"].get("flwref", None)
+
         except:
-            raise ServerError(response)
+            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
 
         # Check if the call returned something other than a 200
         if not response.ok:
-            raise TransactionVerificationError(responseJson.get("message", "Your call failed with no message"))
+            errMsg = responseJson["data"].get("message", "Your call failed with no response")
+            raise TransactionVerificationError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
         
         # Check if the chargecode is 00
         elif not (responseJson["data"].get("chargecode", None) == "00"):
-            return False, responseJson["data"]
+            return {"error": False, "transactionComplete": False, "txRef": txRef, "flwRef":flwRef}
         
         else:
-            return True, responseJson["data"]
+            return {"error": False, "transactionComplete": True, "txRef": txRef, "flwRef":flwRef}
 
-    # Returns arguments to check for based on the authMethod (returns string), need to provide keywordMapping
-    # Maps the suggested_auth to the keyword expected
-    def getTypeOfArgsRequired(self, keywordMap, authMethod):
-        """ This returns the type of arguments required on a response that includes suggested_auth. It is usually overridden by implementing classes.\n
-             Parameters include:\n
-            authMethod (dict) -- This is the action returned from the charge call\n
+    
+    # returns true if further action is required, false if it isn't    
+    def _handleValidateResponse(self, response, flwRef, request=None):
+        """ This handles validation responses """
+        # If json is not parseable, it means there is a problem in server
+        try:
+            responseJson = response.json()
+            txRef = responseJson["data"].get("tx", responseJson["data"]).get("txRef", None)
 
-             Returns:\n
-            pin -- This means that the updatePayload call requires a pin. Pin is passed as a string argument to updatePayload\n
-            address -- This means that the updatePayload call requires an address dict. The dict must contain "billingzip", "billingcity", "billingaddress", "billingstate", "billingcountry".
+        except:
+            raise ServerError({"error": True, "txRef": None, "flwRef": flwRef, "errMsg": response})
 
-        """
-        # Checks if the auth method passed is included in keywordMapping i.e. if it is supported
-        if not keywordMap.get(authMethod, None):
-            raise AuthMethodNotSupportedError(authMethod)
-        
-        return keywordMap[authMethod]
+        # If response code is not a 200
+        if not response.ok:
+            errMsg = responseJson["message"]
+            raise TransactionValidationError({"error":True, "txRef": txRef, "flwRef": flwRef ,"errMsg": errMsg})
+
+        # Of all preliminary checks passed
+        if not (responseJson["data"].get("tx", responseJson["data"]).get("chargeResponseCode", None) == "00"):
+            
+            errMsg = responseJson["data"].get("tx", responseJson["data"]).get("chargeResponseMessage", None)
+            raise TransactionValidationError({"error": True, "txRef": txRef, "flwRef": flwRef , "errMsg": errMsg})
+
+        else:
+            return {"error": False, "txRef": txRef, "flwRef": flwRef}
+
 
     # Charge function (hasFailed is a flag that indicates there is a timeout), shouldReturnRequest indicates whether to send the request back to the _handleResponses function
-    def charge(self, paymentDetails, requiredParameters, hasFailed=False, shouldReturnRequest=False):
+    def charge(self, paymentDetails, requiredParameters, endpoint, hasFailed=False, shouldReturnRequest=False):
         """ This is the base charge call. It is usually overridden by implementing classes.\n
              Parameters include:\n
             paymentDetails (dict) -- These are the parameters passed to the function for processing\n
@@ -105,18 +102,15 @@ class Payment(RaveEncryption):
         """
         # Checking for required components
         
-        areDetailsComplete, missingItem = self._checkIfParametersAreComplete(requiredParameters, paymentDetails)
+        areDetailsComplete, missingItem = checkIfParametersAreComplete(requiredParameters, paymentDetails)
         
         if areDetailsComplete:
 
             # Performing shallow copy of payment details to prevent tampering with original
             paymentDetails = copy.copy(paymentDetails)
-
-            # Setting the endpoint. If the charge call had previously failed, we add 'use_polling=1' as recommended https://flutterwavedevelopers.readme.io/reference#handling-timeouts-via-api
-            endpoint = self._baseUrl + self._endpointMap["charge"]
             
             # Adding PBFPubKey param to paymentDetails
-            paymentDetails.update({"PBFPubKey":self.__publicKey})
+            paymentDetails.update({"PBFPubKey":self._getPublicKey()})
 
             # Encrypting payment details (_encrypt is inherited from RaveEncryption)
             encryptedPaymentDetails = self._encrypt(json.dumps(paymentDetails))
@@ -135,21 +129,19 @@ class Payment(RaveEncryption):
             response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
             
             if shouldReturnRequest:
-                return self._handleResponses(response, endpoint, paymentDetails)
+                return self._handleChargeResponse(response, paymentDetails["txRef"], paymentDetails)
             else:
-                return self._handleResponses(response, endpoint)
+                return self._handleChargeResponse(response, paymentDetails["txRef"])
             
         else:
             raise IncompletePaymentDetailsError(missingItem, requiredParameters)
 
-    def validate(self, flwRef, otp):
+    def validate(self, flwRef, otp, endpoint):
         """ This is the base validate call.\n
              Parameters include:\n
             flwRef (string) -- This is the flutterwave reference returned from a successful charge call. You can access this from action["flwRef"] returned from the charge call\n
             otp (string) -- This is the otp sent to the user \n
         """
-        # Setting the endpoint and adding PBFPubKey param to paymentDetails
-        endpoint = self._baseUrl + self._endpointMap["validate"]
 
         # Collating request headers
         headers = {
@@ -157,22 +149,21 @@ class Payment(RaveEncryption):
         }
         
         payload = {
-            "PBFPubKey": self.__publicKey,
+            "PBFPubKey": self._getPublicKey(),
             "transactionreference": flwRef, 
             "transaction_reference": flwRef,
             "otp": otp
         }
+        
         response = requests.post(endpoint, headers = headers, data=json.dumps(payload))
-        return self._handleResponses(response, endpoint)
+        return self._handleValidateResponse(response, flwRef)
         
     # Verify charge
-    def verify(self, txRef):
+    def verify(self, txRef, endpoint):
         """ This is used to check the status of a transaction.\n
              Parameters include:\n
             txRef (string) -- This is the transaction reference that you passed to your charge call. If you didn't define a reference, you can access the auto-generated one from payload["txRef"] or action["txRef"] from the charge call\n
         """
-        # Setting the endpoint and adding PBFPubKey param to paymentDetails
-        endpoint = self._baseUrl + self._endpointMap["verify"]
 
         # Collating request headers
         headers = {
@@ -182,11 +173,38 @@ class Payment(RaveEncryption):
         # Payload for the request headers
         payload = {
             "txref": txRef,
-            "SECKEY": self.__secretKey
+            "SECKEY": self._getSecretKey()
         }
 
         response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
-        return self._handleVerify(response)
+        return self._handleVerifyResponse(response, txRef)
+
+    # Refund call
+    # def refund(self, flwRef):
+    #     """ This is used to refund a transaction from any of Rave's component objects.\n 
+    #          Parameters include:\n
+    #         flwRef (string) -- This is the flutterwave reference returned from a successful call from any component. You can access this from action["flwRef"] returned from the charge call
+    #     """
+    #     payload = {
+    #         "ref": flwRef,
+    #         "seckey": self._getSecretKey(),
+    #     }
+    #     headers = {
+    #         "Content-Type":"application/json"
+    #     }
+    #     endpoint = self._baseUrl+self._endpointMap["refund"]
+
+    #     response = requests.post(endpoint, headers = headers, data=json.dumps(payload))
+
+    #     try:
+    #         responseJson = response.json()
+    #     except ValueError:
+    #         raise ServerError(response)
+        
+    #     if responseJson.get("status", None) == "error":
+    #         raise RefundError(responseJson.get("message", None))
+    #     elif responseJson.get("status", None) == "success":
+    #         return True, responseJson.get("data", None)
 
 
         

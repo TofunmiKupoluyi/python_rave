@@ -1,38 +1,11 @@
-from python_rave.rave_exceptions import RaveError, IncompletePaymentDetailsError,   GhMobileChargeError, TransactionVerificationError, TransactionValidationError, ServerError
-
 from python_rave.rave_payment import Payment
 from python_rave.rave_misc import generateTransactionReference
 import json
 
 class GhMobile(Payment):
     
-    def __init__(self, publicKey, secretKey, encryptionKey, baseUrl, endpointMap=None):
-            super(GhMobile, self).__init__(publicKey, secretKey, encryptionKey, baseUrl, endpointMap)
-
-    
-    def _handleChargeResponse(self, response, request = None):
-        """ This handles ghmobile charge transactions """
-        # If we cannot parse the json, it means there is a server error
-        try:
-            responseJson = response.json()
-        except:
-            raise ServerError(response)
-
-        # If it is not returning a 200
-        if not response.ok:
-            raise GhMobileChargeError(responseJson["message"])
-        
-        # if all preliminary tests pass
-        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-            return True, responseJson["data"]
-        else:
-            return False, responseJson["data"]
-
-
-    # Returns True if further action is required, false if it is not
-    def _handleResponses(self, response, endpoint, request = None):
-        if endpoint == self._baseUrl + self._endpointMap["charge"]:
-            return self._handleChargeResponse(response)
+    def __init__(self, publicKey, secretKey, encryptionKey, baseUrl):
+        super(GhMobile, self).__init__(publicKey, secretKey, encryptionKey, baseUrl)
 
 
     # Charge mobile money function
@@ -42,6 +15,8 @@ class GhMobile(Payment):
             accountDetails (dict) -- These are the parameters passed to the function for processing\n
             hasFailed (boolean) -- This is a flag to determine if the attempt had previously failed due to a timeout\n
         """
+
+        endpoint = self._baseUrl + self._endpointMap["account"]["charge"]
         # If payment type is not defined or not set to mobile money
         if not ("payment_type" in accountDetails) or not (accountDetails["payment_type"]== "mobilemoneygh"):
             accountDetails.update({"payment_type": "mobilemoneygh"})
@@ -63,4 +38,12 @@ class GhMobile(Payment):
 
         # Checking for required account components
         requiredParameters = ["amount", "email", "phonenumber", "network", "IP", "redirect_url"]
-        return super(GhMobile, self).charge(accountDetails, requiredParameters)
+        return super(GhMobile, self).charge(accountDetails, requiredParameters, endpoint)
+
+    def validate(self, flwRef, otp):
+        endpoint = self._baseUrl + self._endpointMap["account"]["validate"]
+        return super(GhMobile, self).validate(flwRef, otp, endpoint)
+
+    def verify(self, txRef):
+        endpoint = self._baseUrl + self._endpointMap["account"]["verify"]
+        return super(GhMobile, self).verify(txRef, endpoint)

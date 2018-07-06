@@ -1,5 +1,7 @@
 import os, hashlib, warnings, requests, json
 from python_rave.rave_exceptions import ServerError, RefundError
+import base64
+from Crypto.Cipher import DES3
 class RaveBase(object):
     """ This is the core of the implementation. It contains the encryption and initialization functions. It also contains all direct rave functions that require publicKey or secretKey (refund) """
     def __init__(self, publicKey=None, secretKey=None, production=False, usingEnv=True):
@@ -69,31 +71,32 @@ class RaveBase(object):
             return seckeyadjustedfirst12 + hashedseckeylast12
 
         raise ValueError("Please initialize RavePay")
-        
-    def refund(self, flwRef):
-        """ This is used to refund a transaction from any of Rave's component objects.\n 
-             Parameters include:\n
-            flwRef (string) -- This is the flutterwave reference returned from a successful call from any component. You can access this from action["flwRef"] returned from the charge call
+    
+    # This returns the public key
+    def _getPublicKey(self):
+        return self.__publicKey
+    
+    # This returns the secret key
+    def _getSecretKey(self):
+        return self.__secretKey
+
+    # This encrypts text
+    def _encrypt(self, plainText):
+        """ This is the encryption function.\n
+             Parameters include:\n 
+            plainText (string) -- This is the text you wish to encrypt
         """
-        payload = {
-            "ref": flwRef,
-            "seckey": self.__secretKey,
-        }
-        headers = {
-            "Content-Type":"application/json"
-        }
-        endpoint = self._baseUrl+self._endpointMap["refund"]
-
-        response = requests.post(endpoint, headers = headers, data=json.dumps(payload))
-
-        try:
-            responseJson = response.json()
-        except ValueError:
-            raise ServerError(response)
+        blockSize = 8
+        padDiff = blockSize - (len(plainText) % blockSize)
+        key = self.__getEncryptionKey()
+        cipher = DES3.new(key, DES3.MODE_ECB)
+        plainText = "{}{}".format(plainText, "".join(chr(padDiff) * padDiff))
+        encrypted = base64.b64encode(cipher.encrypt(plainText)).decode("utf-8")
+        return encrypted
         
-        if responseJson.get("status", None) == "error":
-            raise RefundError(responseJson.get("message", None))
-        elif responseJson.get("status", None) == "success":
-            return True, responseJson.get("data", None)
+
+
+
+
 
     
