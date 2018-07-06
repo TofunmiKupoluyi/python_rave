@@ -13,49 +13,6 @@ class Preauth(Card):
     def __init__(self, publicKey, secretKey, encryptionKey, baseUrl):
         super(Preauth, self).__init__(publicKey, secretKey, encryptionKey, baseUrl)
 
-    
-    def _handleCaptureResponse(self, response, flwRef, request=None):
-        """ This handles capture responses """ 
-        # If json is not parseable, there is a server error
-        try:
-            responseJson = response.json()
-            txRef = responseJson["data"].get("txRef", None)
-        except:
-            raise ServerError({"error": True, "txRef": None, "flwRef": flwRef, "errMsg": response})
-        
-        # If it does not return a 200
-        if not response.ok:
-            errMsg = responseJson["data"].get("message", None)
-            raise PreauthCaptureError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
-        
-        # If it requires further authentication
-        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-            return {"error": False,  "validationRequired": True, "txRef": txRef, "flwRef": flwRef}
-        else:
-            return {"error": False,  "validationRequired": False, "txRef": txRef, "flwRef": flwRef}
-    
-
-    def _handleRefundVoidResponse(self, response, flwRef, request=None):
-        """ This handles capture responses """ 
-        # If json is not parseable, there is a server error
-        try:
-            responseJson = response.json()
-            txRef = responseJson["data"].get("txRef", None)
-        except:
-            raise ServerError({"error": True, "txRef": None, "flwRef": flwRef, "errMsg": response})
-        
-        # If it does not return a 200
-        if not response.ok:
-            errMsg = responseJson["data"].get("message", None)
-            raise PreauthRefundVoidError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
-        
-        # If it requires further authentication
-        if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
-            return {"error": False,  "validationRequired": True, "txRef": txRef, "flwRef": flwRef}
-        else:
-            return {"error": False,  "validationRequired": False, "txRef": txRef, "flwRef": flwRef}
-        
-
     # Initiate preauth
     def charge(self, cardDetails, hasFailed=False):
         """ This is called to initiate the preauth process.\n
@@ -85,7 +42,7 @@ class Preauth(Card):
         }
         endpoint = self._baseUrl + self._endpointMap["capture"]
         response = requests.post(endpoint, headers=headers, data=payload)
-        self._handleCaptureResponse(response, flwRef)
+        self._handleChargeResponse(response, flwRef)
     
 
     def void(self, flwRef):
@@ -103,7 +60,7 @@ class Preauth(Card):
         }
         endpoint = self._baseUrl + self._endpointMap["refundorvoid"]
         response = requests.post(endpoint, headers=headers, data=payload)
-        self._handleRefundVoidResponse(response, endpoint)
+        self._handleChargeResponse(response, endpoint)
     
     
     def refund(self, flwRef, amount=None):
@@ -125,4 +82,4 @@ class Preauth(Card):
         }
         endpoint = self._baseUrl + self._endpointMap["refundorvoid"]
         response = requests.post(endpoint, headers=headers, data=payload)
-        self._handleRefundVoidResponse(response, endpoint)
+        self._handleChargeResponse(response, endpoint)
