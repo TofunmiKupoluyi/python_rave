@@ -23,6 +23,7 @@ class RaveBase(object):
                 "verify": "flwv3-pug/getpaidx/api/v2/verify",
                 "failed": "?use_polling=1"
             },
+            "verify": "flwv3-pug/getpaidx/api/v2/verify",
             "refund": "gpx/merchant/transactions/refund"
             
         }

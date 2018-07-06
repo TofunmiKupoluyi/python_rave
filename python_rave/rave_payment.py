@@ -136,13 +136,16 @@ class Payment(RaveBase):
         else:
             raise IncompletePaymentDetailsError(missingItem, requiredParameters)
 
-    def validate(self, flwRef, otp, endpoint):
+    def validate(self, flwRef, otp, endpoint=None):
         """ This is the base validate call.\n
              Parameters include:\n
             flwRef (string) -- This is the flutterwave reference returned from a successful charge call. You can access this from action["flwRef"] returned from the charge call\n
             otp (string) -- This is the otp sent to the user \n
         """
 
+        if not endpoint: 
+            endpoint = self._baseUrl + self._endpointMap["account"]["validate"]
+            
         # Collating request headers
         headers = {
             'content-type': 'application/json',
@@ -159,11 +162,13 @@ class Payment(RaveBase):
         return self._handleValidateResponse(response, flwRef)
         
     # Verify charge
-    def verify(self, txRef, endpoint):
+    def verify(self, txRef, endpoint=None):
         """ This is used to check the status of a transaction.\n
              Parameters include:\n
             txRef (string) -- This is the transaction reference that you passed to your charge call. If you didn't define a reference, you can access the auto-generated one from payload["txRef"] or action["txRef"] from the charge call\n
         """
+        if not endpoint:
+            endpoint = self._baseUrl + self._endpointMap["verify"]
 
         # Collating request headers
         headers = {

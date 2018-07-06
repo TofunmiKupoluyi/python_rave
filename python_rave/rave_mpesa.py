@@ -38,12 +38,3 @@ class Mpesa(Payment):
         # Checking for required account components
         requiredParameters = ["amount", "email", "phonenumber", "IP"]
         return super(Mpesa, self).charge(accountDetails, requiredParameters, endpoint)
-
-
-    def validate(self, flwRef, otp):
-        endpoint = self._baseUrl + self._endpointMap["card"]["validate"]
-        return super(Mpesa, self).validate(flwRef, otp, endpoint)
-
-    def verify(self, txRef):
-        endpoint = self._baseUrl + self._endpointMap["card"]["verify"]
-        return super(Mpesa, self).verify(txRef, endpoint)
