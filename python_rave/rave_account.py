@@ -48,9 +48,9 @@ class Account(Payment):
         # setting the endpoint
         endpoint = self._baseUrl + self._endpointMap["account"]["charge"]
 
-        # If payment type is not defined or not set to account
-        if not ("payment_type" in accountDetails) or not (accountDetails["payment_type"]== "account"):
-            accountDetails.update({"payment_type": "account"})
+        # It is faster to just update rather than check if it is already present
+        accountDetails.update({"payment_type": "account"})
+        # Here we check because txRef could be set by user
         if not ("txRef" in accountDetails):
             accountDetails.update({"txRef": generateTransactionReference()})
         # Checking for required account components
