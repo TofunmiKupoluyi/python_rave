@@ -87,7 +87,7 @@ class Payment(RaveBase):
 
 
     # Charge function (hasFailed is a flag that indicates there is a timeout), shouldReturnRequest indicates whether to send the request back to the _handleResponses function
-    def charge(self, paymentDetails, requiredParameters, endpoint, hasFailed=False, shouldReturnRequest=False):
+    def charge(self, paymentDetails, requiredParameters, endpoint, shouldReturnRequest=False):
         """ This is the base charge call. It is usually overridden by implementing classes.\n
              Parameters include:\n
             paymentDetails (dict) -- These are the parameters passed to the function for processing\n
