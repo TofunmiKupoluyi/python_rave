@@ -17,16 +17,11 @@ class Ussd(Payment):
         bankList = {"gtb": "058", "zenith": "057"}
         gtbResponseText = "To complete this transaction, please dial *737*50*charged_amount*159#"
         # This checks if we can parse the json successfully
-        try:
-            responseJson = response.json()
-            flwRef = responseJson["data"].get("flwRef", None)
-        except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
+        
+        res =  self._preliminaryResponseChecks(response, UssdChargeError, txRef=txRef)
 
-        # If response code is not a 200
-        if not response.ok:
-            errMsg = responseJson["data"].get("message", None)
-            raise UssdChargeError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
+        responseJson = res["json"]
+        flwRef = res["flwRef"]
 
         # Charge response code of 00 means successful, 02 means failed. Here we check if the code is not 00
         if not (responseJson["data"].get("chargeResponseCode", None) == "00"):

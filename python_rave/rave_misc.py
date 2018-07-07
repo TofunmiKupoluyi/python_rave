@@ -45,37 +45,35 @@ def updatePayload(suggestedAuth, payload, **kwargs):
         \n
         ## This updates payload directly
     """ 
-    # Check if the suggestedAuth was passed correctly
-    if suggestedAuth and payload:
-        # Sets the keyword to check for in kwargs (it maps the suggestedAuth to keywords)
-        keyword = getTypeOfArgsRequired(suggestedAuth)
 
-        # Checks
+    # Sets the keyword to check for in kwargs (it maps the suggestedAuth to keywords)
+    keyword = getTypeOfArgsRequired(suggestedAuth)
 
-        # 1) Checks if keyword is present in kwargs
-        if not kwargs.get(keyword, None):
-            # Had to split variable assignment and raising ValueError because of error message python displayed
-            errorMsg = "Please provide the appropriate argument for the auth method. For {}, we require a \"{}\" argument.".format(suggestedAuth["suggested_auth"], keyword)
-            raise ValueError(errorMsg)
+    # Checks
 
-        # 2) If keyword is address, checks if all required address paramaters are present
-        if keyword == "address":
-            requiredAddressParameters = ["billingzip", "billingcity", "billingaddress", "billingstate", "billingcountry"]
-            areDetailsComplete, missingItem  = checkIfParametersAreComplete(requiredAddressParameters, kwargs[keyword])
-            if not areDetailsComplete:
-                raise IncompletePaymentDetailsError(missingItem, requiredAddressParameters)
-            
-        # All checks passed
+    # 1) Checks if keyword is present in kwargs
+    if not kwargs.get(keyword, None):
+        # Had to split variable assignment and raising ValueError because of error message python displayed
+        errorMsg = "Please provide the appropriate argument for the auth method. For {}, we require a \"{}\" argument.".format(suggestedAuth["suggested_auth"], keyword)
+        raise ValueError(errorMsg)
 
-        # Add items to payload
-        # If the argument is a dictionary, we add the argument as is
-        if isinstance(kwargs[keyword], dict):
-            payload.update(kwargs[keyword])
+    # 2) If keyword is address, checks if all required address paramaters are present
+    if keyword == "address":
+        requiredAddressParameters = ["billingzip", "billingcity", "billingaddress", "billingstate", "billingcountry"]
+        areDetailsComplete, missingItem  = checkIfParametersAreComplete(requiredAddressParameters, kwargs[keyword])
+        if not areDetailsComplete:
+            raise IncompletePaymentDetailsError(missingItem, requiredAddressParameters)
+        
+    # All checks passed
 
-        # If it's not we add it manually
-        else:
-            payload.update({"suggested_auth": suggestedAuth})
-            payload.update({keyword: kwargs[keyword]})
-            
+    # Add items to payload
+    # If the argument is a dictionary, we add the argument as is
+    if isinstance(kwargs[keyword], dict):
+        payload.update(kwargs[keyword])
+
+    # If it's not we add it manually
     else:
-        raise ValueError("Please provide action object (object with suggested_auth key) as the first positional argument and payload (old card details) as the second positional error")
+        payload.update({"suggested_auth": suggestedAuth})
+        payload.update({keyword: kwargs[keyword]})
+            
+    
