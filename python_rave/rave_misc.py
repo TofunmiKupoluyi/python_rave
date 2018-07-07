@@ -7,10 +7,12 @@ def generateTransactionReference(merchantId=None):
          Parameters include:\n
         merchantId (string) -- (optional) You can specify a merchant id to start references e.g. merchantId-12345678
     """
+    rawTime = round(time.time() * 1000)
+    timestamp = int(rawTime)
     if merchantId:
-        return merchantId+"-"+str(int(round(time.time() * 1000)))
+        return merchantId+"-"+str(timestamp)
     else:
-        return "MC-"+str(int(round(time.time() * 1000)))
+        return "MC-"+str(timestamp)
 
 # If parameters are complete, returns true. If not returns false with parameter missing
 def checkIfParametersAreComplete(requiredParameters, paymentDetails):
