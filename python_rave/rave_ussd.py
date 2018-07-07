@@ -69,11 +69,6 @@ class Ussd(Payment):
         # Should return request is a less efficient call but it is required here because we need bank code in _handleResponses
         return super(Ussd, self).charge(ussdDetails, requiredParameters, endpoint, shouldReturnRequest=True)
 
-    def validate(self, flwRef, otp):
-        endpoint = self._baseUrl + self._endpointMap["account"]["validate"]
-        return super(Ussd, self).validate(flwRef, otp, endpoint)
 
-    def verify(self, txRef):
-        endpoint = self._baseUrl + self._endpointMap["account"]["verify"]
-        return super(Ussd, self).verify(txRef, endpoint)
+
 

@@ -63,11 +63,5 @@ class Account(Payment):
         requiredParameters = ["accountbank", "accountnumber", "amount", "email", "phonenumber", "IP"]
         return super(Account, self).charge(accountDetails, requiredParameters, endpoint)
 
-    # Overriding occurs at name level python
-    def validate(self, flwRef, otp):
-        endpoint = self._baseUrl + self._endpointMap["account"]["validate"]
-        return super(Account, self).validate(flwRef, otp, endpoint)
 
-    def verify(self, txRef):
-        endpoint = self._baseUrl + self._endpointMap["account"]["verify"]
-        return super(Account, self).verify(txRef, endpoint)
+

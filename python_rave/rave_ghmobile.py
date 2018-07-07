@@ -40,10 +40,3 @@ class GhMobile(Payment):
         requiredParameters = ["amount", "email", "phonenumber", "network", "IP", "redirect_url"]
         return super(GhMobile, self).charge(accountDetails, requiredParameters, endpoint)
 
-    def validate(self, flwRef, otp):
-        endpoint = self._baseUrl + self._endpointMap["account"]["validate"]
-        return super(GhMobile, self).validate(flwRef, otp, endpoint)
-
-    def verify(self, txRef):
-        endpoint = self._baseUrl + self._endpointMap["account"]["verify"]
-        return super(GhMobile, self).verify(txRef, endpoint)
