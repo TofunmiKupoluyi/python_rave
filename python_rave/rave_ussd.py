@@ -52,12 +52,8 @@ class Ussd(Payment):
 
         endpoint = self._baseUrl + self._endpointMap["account"]["charge"]
 
-        # if ussdDetails are not defined or it is not 1
-        if not ("is_ussd" in ussdDetails) or not (ussdDetails["is_ussd"] == "1"):
-            ussdDetails.update({"is_ussd": "1"})
-        # if payment type is not defined or not set to ussd
-        if not ("payment_type" in ussdDetails) or not(ussdDetails["payment_type"] == "ussd"):
-            ussdDetails.update({"payment_type": "ussd"})
+        # Add boilerplate ussd code
+        ussdDetails.update({"is_ussd": "1", "payment_type": "ussd"})
         # if transaction reference is not present, generate
         if not ("txRef" in ussdDetails):
             ussdDetails.update({"txRef": generateTransactionReference()})

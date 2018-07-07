@@ -22,9 +22,7 @@ class Preauth(Card):
         """
 
         # Add the charge_type
-        if not("charge_type" in cardDetails) or not (cardDetails["charge_type"] == "preauth"):
-            cardDetails.update({"charge_type":"preauth"})
-
+        cardDetails.update({"charge_type":"preauth"})
         return super(Preauth, self).charge(cardDetails)
     
     # capture payment
