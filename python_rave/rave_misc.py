@@ -19,7 +19,7 @@ def checkIfParametersAreComplete(requiredParameters, paymentDetails):
     """ This returns true/false depending on if the paymentDetails match the required parameters """
     for i in requiredParameters:
         if i not in paymentDetails:
-            return False, i
+            raise IncompletePaymentDetailsError(i, requiredParameters)
     return True, None
 
 def getTypeOfArgsRequired(suggestedAuth):
@@ -62,9 +62,7 @@ def updatePayload(suggestedAuth, payload, **kwargs):
     # 2) If keyword is address, checks if all required address paramaters are present
     if keyword == "address":
         requiredAddressParameters = ["billingzip", "billingcity", "billingaddress", "billingstate", "billingcountry"]
-        areDetailsComplete, missingItem  = checkIfParametersAreComplete(requiredAddressParameters, kwargs[keyword])
-        if not areDetailsComplete:
-            raise IncompletePaymentDetailsError(missingItem, requiredAddressParameters)
+        checkIfParametersAreComplete(requiredAddressParameters, kwargs[keyword])
         
     # All checks passed
 

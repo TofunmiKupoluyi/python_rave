@@ -97,39 +97,35 @@ class Payment(RaveBase):
         """
         # Checking for required components
         
-        areDetailsComplete, missingItem = checkIfParametersAreComplete(requiredParameters, paymentDetails)
+        checkIfParametersAreComplete(requiredParameters, paymentDetails)
         
-        if areDetailsComplete:
+        # Performing shallow copy of payment details to prevent tampering with original
+        paymentDetails = copy.copy(paymentDetails)
+        
+        # Adding PBFPubKey param to paymentDetails
+        paymentDetails.update({"PBFPubKey":self._getPublicKey()})
 
-            # Performing shallow copy of payment details to prevent tampering with original
-            paymentDetails = copy.copy(paymentDetails)
-            
-            # Adding PBFPubKey param to paymentDetails
-            paymentDetails.update({"PBFPubKey":self._getPublicKey()})
+        # Encrypting payment details (_encrypt is inherited from RaveEncryption)
+        encryptedPaymentDetails = self._encrypt(json.dumps(paymentDetails))
 
-            # Encrypting payment details (_encrypt is inherited from RaveEncryption)
-            encryptedPaymentDetails = self._encrypt(json.dumps(paymentDetails))
-
-            # Collating request headers
-            headers = {
-                'content-type': 'application/json',
-            }
-            
-            # Collating the payload for the request
-            payload = {
-                "PBFPubKey": paymentDetails["PBFPubKey"],
-                "client": encryptedPaymentDetails,
-                "alg": "3DES-24"
-            }
-            response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
-            
-            if shouldReturnRequest:
-                return self._handleChargeResponse(response, paymentDetails["txRef"], paymentDetails)
-            else:
-                return self._handleChargeResponse(response, paymentDetails["txRef"])
-            
+        # Collating request headers
+        headers = {
+            'content-type': 'application/json',
+        }
+        
+        # Collating the payload for the request
+        payload = {
+            "PBFPubKey": paymentDetails["PBFPubKey"],
+            "client": encryptedPaymentDetails,
+            "alg": "3DES-24"
+        }
+        response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
+        
+        if shouldReturnRequest:
+            return self._handleChargeResponse(response, paymentDetails["txRef"], paymentDetails)
         else:
-            raise IncompletePaymentDetailsError(missingItem, requiredParameters)
+            return self._handleChargeResponse(response, paymentDetails["txRef"])
+       
 
     def validate(self, flwRef, otp, endpoint=None):
         """ This is the base validate call.\n
