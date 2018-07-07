@@ -15,17 +15,10 @@ class Card(Payment):
     # returns true if further action is required, false if it isn't    
     def _handleChargeResponse(self, response, txRef, request=None):
         """ This handles charge responses """
-        try:
-            responseJson = response.json()
-            flwRef = responseJson["data"].get("flwRef", None)
-
-        except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
-
-        if not response.ok:
-            # If response code is not a 200
-            errMsg = responseJson["data"].get("message", None)
-            raise CardChargeError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
+        res =  self._preliminaryResponseChecks(response, CardChargeError, txRef=txRef)
+        
+        responseJson = res["json"]
+        flwRef = res["flwRef"]
         
         # If all preliminary checks passed
         if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
@@ -46,14 +39,10 @@ class Card(Payment):
          """
 
         # Checking if there was a server error during the call (in this case html is returned instead of json)
-        try:
-            responseJson = response.json()
-            flwRef = responseJson["data"].get("flwRef", None)
-            # Weird response returned from API call so we have to deal with this specially
-            if not flwRef:
-                flwRef = responseJson["data"].get("flwref", None)
-        except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
+        res =  self._preliminaryResponseChecks(response, TransactionVerificationError, txRef=txRef)
+
+        responseJson = res["json"]
+        flwRef = res["flwRef"]
 
         # Check if the call returned something other than a 200
         if not response.ok:

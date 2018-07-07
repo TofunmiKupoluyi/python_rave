@@ -17,16 +17,10 @@ class Account(Payment):
     def _handleChargeResponse(self, response, txRef, request=None):
         """ This handles account charge responses """
         # This checks if we can parse the json successfully
-        try:
-            responseJson = response.json()
-            flwRef = responseJson["data"].get("flwRef", None)
-        except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
+        res =  self._preliminaryResponseChecks(response, AccountChargeError, txRef=txRef)
 
-        # If it is not returning a 200
-        if not response.ok:
-            errMsg = responseJson["data"].get("message", None)
-            raise AccountChargeError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
+        responseJson = res["json"]
+        flwRef = res["flwRef"]
         
         # If all preliminary checks are passed
         if not (responseJson["data"].get("chargeResponseCode", None) == "00"):

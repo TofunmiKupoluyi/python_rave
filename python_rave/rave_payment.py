@@ -11,19 +11,32 @@ class Payment(RaveBase):
         super(Payment, self).__init__(publicKey, secretKey, production, usingEnv)
 
 
-    def _handleChargeResponse(self, response, txRef, request=None):
-        """ This handles transaction charge responses """
-        # If we cannot parse the json, it means there is a server error
+    def _preliminaryResponseChecks(self, response, TypeOfErrorToRaise, txRef=None, flwRef=None):
+
         try:
             responseJson = response.json()
-            flwRef = responseJson["data"].get("flwRef", None)
+            if txRef:
+                flwRef = responseJson["data"].get("flwRef", None)
+            if flwRef:
+                txRef = responseJson["data"].get("txRef", None)
         except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
+            raise ServerError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": response})
 
         # If it is not returning a 200
         if not response.ok:
             errMsg = responseJson["data"].get("message", None)
-            raise TransactionChargeError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
+            raise TypeOfErrorToRaise({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
+        
+        return {"json": responseJson, "flwRef": flwRef, "txRef": txRef}
+
+    def _handleChargeResponse(self, response, txRef, request=None):
+        """ This handles transaction charge responses """
+
+        # If we cannot parse the json, it means there is a server error
+        res =  self._preliminaryResponseChecks(response, TransactionChargeError, txRef=txRef)
+
+        responseJson = res["json"]
+        flwRef = res["flwRef"]
         
         # if all preliminary tests pass
         if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
@@ -40,25 +53,13 @@ class Payment(RaveBase):
             response (dict) -- This is the response Http object returned from the verify call
          """
 
-        # Checking if there was a server error during the call (in this case html is returned instead of json)
-        try:
-            responseJson = response.json()
-            flwRef = responseJson["data"].get("flwRef", None)
+        res =  self._preliminaryResponseChecks(response, TransactionVerificationError, txRef=txRef)
 
-            # Weird response returned from API call so we have to deal with this specially
-            if not flwRef:
-                flwRef = responseJson["data"].get("flwref", None)
+        responseJson = res["json"]
+        flwRef = res["flwRef"]
 
-        except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": None, "errMsg": response})
-
-        # Check if the call returned something other than a 200
-        if not response.ok:
-            errMsg = responseJson["data"].get("message", "Your call failed with no response")
-            raise TransactionVerificationError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
-        
         # Check if the chargecode is 00
-        elif not (responseJson["data"].get("chargecode", None) == "00"):
+        if not (responseJson["data"].get("chargecode", None) == "00"):
             return {"error": False, "transactionComplete": False, "txRef": txRef, "flwRef":flwRef}
         
         else:
@@ -68,18 +69,12 @@ class Payment(RaveBase):
     # returns true if further action is required, false if it isn't    
     def _handleValidateResponse(self, response, flwRef, request=None):
         """ This handles validation responses """
+
         # If json is not parseable, it means there is a problem in server
-        try:
-            responseJson = response.json()
-            txRef = responseJson["data"].get("tx", responseJson["data"]).get("txRef", None)
+        res =  self._preliminaryResponseChecks(response, TransactionValidationError, flwRef=flwRef)
 
-        except:
-            raise ServerError({"error": True, "txRef": None, "flwRef": flwRef, "errMsg": response})
-
-        # If response code is not a 200
-        if not response.ok:
-            errMsg = responseJson["message"]
-            raise TransactionValidationError({"error":True, "txRef": txRef, "flwRef": flwRef ,"errMsg": errMsg})
+        responseJson = res["json"]
+        txRef = res["txRef"]
 
         # Of all preliminary checks passed
         if not (responseJson["data"].get("tx", responseJson["data"]).get("chargeResponseCode", None) == "00"):
