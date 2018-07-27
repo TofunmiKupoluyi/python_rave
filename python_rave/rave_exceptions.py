@@ -88,10 +88,26 @@ class ServerError(RaveError):
         self.err = err
         
     def __str__(self):
-        return "Server is down with message: "+self.err["errMsg"]
+        return " Server is down with error: " + self.err["errMsg"]
 
 class RefundError(RaveError):
     """ Raised when refund fails """
     def __init__(self, message):
         msg = "Your refund call failed with message: "+str(message)
         super(RefundError, self).__init__(msg)
+
+class InitiateTransferError(RaveError):
+    """ Raised when transfer initiation fails """
+    def __init__(self, err):
+        self.err = err
+    
+    def __str__(self):
+        return "Transfer initiation failed with error: " + self.err["errMsg"]
+
+class TransferFetchError(RaveError):
+    """ Raised when fetching transfer fails """
+    def __init__(self, err):
+        self.err = err
+    
+    def __str__(self):
+        return "Transfer fetch failed with error: " + self.err["errMsg"]

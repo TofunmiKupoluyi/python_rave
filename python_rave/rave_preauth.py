@@ -14,7 +14,7 @@ class Preauth(Card):
         super(Preauth, self).__init__(publicKey, secretKey, production, usingEnv)
 
     # Initiate preauth
-    def charge(self, cardDetails, hasFailed=False):
+    def charge(self, cardDetails, chargeWithToken=False, hasFailed=False):
         """ This is called to initiate the preauth process.\n
              Parameters include:\n
             cardDetails (dict) -- This is a dictionary comprising payload parameters.\n
@@ -23,7 +23,7 @@ class Preauth(Card):
 
         # Add the charge_type
         cardDetails.update({"charge_type":"preauth"})
-        return super(Preauth, self).charge(cardDetails)
+        return super(Preauth, self).charge(cardDetails, chargeWithToken)
     
     # capture payment
     def capture(self, flwRef):

@@ -13,15 +13,22 @@ class RaveBase(object):
                 "charge": "flwv3-pug/getpaidx/api/charge",
                 "validate": "flwv3-pug/getpaidx/api/validatecharge",
                 "verify": "flwv3-pug/getpaidx/api/v2/verify",
-                "failed": "?use_polling=1",
+                "preauthSavedCard": "flwv3-pug/getpaidx/api/tokenized/preauth_charge",
                 "capture": "flwv3-pug/getpaidx/api/capture",
                 "refundorvoid": "flwv3-pug/getpaidx/api/refundorvoid"
             },
             "account": {
                 "charge": "flwv3-pug/getpaidx/api/charge",
                 "validate": "flwv3-pug/getpaidx/api/validate",
-                "verify": "flwv3-pug/getpaidx/api/v2/verify",
-                "failed": "?use_polling=1"
+                "verify": "flwv3-pug/getpaidx/api/v2/verify"
+            },
+            "transfer": {
+                "initiate": "v2/gpx/transfers/create",
+                "bulk": "v2/gpx/transfers/create_bulk",
+                "fetch": "v2/gpx/transfers",
+                "fee": "v2/gpx/transfers/fee",
+                "balance": "v2/gpx/balance",
+                "accountVerification": "flwv3-pug/getpaidx/api/resolve_account"
             },
             "verify": "flwv3-pug/getpaidx/api/v2/verify",
             "refund": "gpx/merchant/transactions/refund"

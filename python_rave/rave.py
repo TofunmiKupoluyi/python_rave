@@ -5,6 +5,7 @@ from python_rave.rave_ussd import Ussd
 from python_rave.rave_ghmobile import GhMobile
 from python_rave.rave_mpesa import Mpesa
 from python_rave.rave_preauth import Preauth
+from python_rave.rave_transfer import Transfer
 
 class Rave:
     
@@ -26,4 +27,6 @@ class Rave:
         self.Ussd = Ussd(publicKey, secretKey, production, usingEnv)
         self.GhMobile = GhMobile(publicKey, secretKey, production, usingEnv)
         self.Mpesa = Mpesa(publicKey, secretKey, production, usingEnv)
+        # Transfer endpoint
+        self.Transfer = Transfer(publicKey, secretKey, production, usingEnv)
         

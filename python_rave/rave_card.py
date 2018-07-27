@@ -19,14 +19,20 @@ class Card(Payment):
         
         responseJson = res["json"]
         flwRef = res["flwRef"]
-        
+
+        # Checking if there is auth url
+        if responseJson["data"].get("authurl", "N/A") == "N/A":
+            authUrl = None
+        else:
+            authUrl = responseJson["data"]["authurl"]
+
         # If all preliminary checks passed
         if not (responseJson["data"].get("chargeResponseCode", None) == "00"):
             # Otherwise we return that further action is required, along with the response
             suggestedAuth = responseJson["data"].get("suggested_auth", None)
-            return {"error": False,  "validationRequired": True, "txRef": txRef, "flwRef": flwRef, "suggestedAuth": suggestedAuth}
+            return {"error": False,  "validationRequired": True, "txRef": txRef, "flwRef": flwRef, "suggestedAuth": suggestedAuth, "authUrl": authUrl}
         else:
-            return {"error": False,  "validationRequired": False, "txRef": txRef, "flwRef": flwRef, "suggestedAuth": None}
+            return {"error": False,  "validationRequired": False, "txRef": txRef, "flwRef": flwRef, "suggestedAuth": None, "authUrl": authUrl}
 
     
 
@@ -58,19 +64,27 @@ class Card(Payment):
 
     
     # Charge card function
-    def charge(self, cardDetails, hasFailed=False):
+    def charge(self, cardDetails, hasFailed=False, chargeWithToken=False):
         """ This is called to initiate the charge process.\n
              Parameters include:\n
             cardDetails (dict) -- This is a dictionary comprising payload parameters.\n
             hasFailed (bool) -- This indicates whether the request had previously failed for timeout handling
         """
 
-        # setting the endpoint
-        endpoint = self._baseUrl + self._endpointMap["card"]["charge"]
-        if not ("txRef" in cardDetails):
-            cardDetails.update({"txRef":generateTransactionReference()})
         # Checking for required card components
         requiredParameters = ["cardno", "cvv", "expirymonth", "expiryyear", "amount", "email", "phonenumber", "firstname", "lastname", "IP"]
+
+        # setting the endpoint
+        if not chargeWithToken:
+            endpoint = self._baseUrl + self._endpointMap["card"]["charge"]
+        else:
+            endpoint = self._baseUrl + self._endpointMap["card"]["preauthSavedCard"]
+            # add token to requiredParameters
+            requiredParameters.append("token")
+
+        if not ("txRef" in cardDetails):
+            cardDetails.update({"txRef":generateTransactionReference()})
+
         
         return super(Card, self).charge(cardDetails, requiredParameters, endpoint)
     
