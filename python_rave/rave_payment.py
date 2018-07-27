@@ -12,17 +12,22 @@ class Payment(RaveBase):
 
 
     def _preliminaryResponseChecks(self, response, TypeOfErrorToRaise, txRef=None, flwRef=None):
-
+        # Check if we can obtain a json
         try:
             responseJson = response.json()
+        except:
+            raise ServerError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": response})
+
+        # Check if the response contains data parameter
+        if responseJson.get("data", None):
             if txRef:
                 flwRef = responseJson["data"].get("flwRef", None)
             if flwRef:
                 txRef = responseJson["data"].get("txRef", None)
-        except:
-            raise ServerError({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": response})
-
-        # If it is not returning a 200
+        else:
+            raise TypeOfErrorToRaise({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": responseJson.get("message", "Server is down")})
+        
+        # Check if it is returning a 200
         if not response.ok:
             errMsg = responseJson["data"].get("message", None)
             raise TypeOfErrorToRaise({"error": True, "txRef": txRef, "flwRef": flwRef, "errMsg": errMsg})
@@ -33,7 +38,7 @@ class Payment(RaveBase):
         """ This handles transaction charge responses """
 
         # If we cannot parse the json, it means there is a server error
-        res =  self._preliminaryResponseChecks(response, TransactionChargeError, txRef=txRef)
+        res = self._preliminaryResponseChecks(response, TransactionChargeError, txRef=txRef)
 
         responseJson = res["json"]
         flwRef = res["flwRef"]
@@ -53,7 +58,8 @@ class Payment(RaveBase):
             response (dict) -- This is the response Http object returned from the verify call
          """
 
-        res =  self._preliminaryResponseChecks(response, TransactionVerificationError, txRef=txRef)
+        res = self._preliminaryResponseChecks(response, TransactionVerificationError, txRef=txRef)
+
 
         responseJson = res["json"]
         flwRef = res["flwRef"]
@@ -71,14 +77,14 @@ class Payment(RaveBase):
         """ This handles validation responses """
 
         # If json is not parseable, it means there is a problem in server
-        res =  self._preliminaryResponseChecks(response, TransactionValidationError, flwRef=flwRef)
+            
+        res = self._preliminaryResponseChecks(response, TransactionValidationError, flwRef=flwRef)
 
         responseJson = res["json"]
         txRef = res["txRef"]
 
         # Of all preliminary checks passed
         if not (responseJson["data"].get("tx", responseJson["data"]).get("chargeResponseCode", None) == "00"):
-            
             errMsg = responseJson["data"].get("tx", responseJson["data"]).get("chargeResponseMessage", None)
             raise TransactionValidationError({"error": True, "txRef": txRef, "flwRef": flwRef , "errMsg": errMsg})
 
@@ -96,14 +102,16 @@ class Payment(RaveBase):
             shouldReturnRequest -- This determines whether a request is passed to _handleResponses\n
         """
         # Checking for required components
-        
-        checkIfParametersAreComplete(requiredParameters, paymentDetails)
+        try:
+            checkIfParametersAreComplete(requiredParameters, paymentDetails)
+        except: 
+            raise
         
         # Performing shallow copy of payment details to prevent tampering with original
         paymentDetails = copy.copy(paymentDetails)
         
         # Adding PBFPubKey param to paymentDetails
-        paymentDetails.update({"PBFPubKey":self._getPublicKey()})
+        paymentDetails.update({"PBFPubKey": self._getPublicKey()})
 
         # Encrypting payment details (_encrypt is inherited from RaveEncryption)
         encryptedPaymentDetails = self._encrypt(json.dumps(paymentDetails))

@@ -793,3 +793,60 @@ except RaveExceptions.TransactionVerificationError as e:
 
 
 ```
+
+## ```rave.Transfer```
+
+This is used to initiate and manage payouts
+
+
+**Functions included:**
+
+* ```.initiate```
+
+* ```.bulk```
+
+* ```.fetch```
+
+* ```.getFee```
+
+* ```.getBalance```
+
+<br>
+
+### Complete transfer flow
+
+```
+from python_rave import Rave, RaveExceptions
+try:
+    rave = Rave("ENTER_YOUR_PUBLIC_KEY", "ENTER_YOUR_SECRET_KEY", usingEnv = False)
+
+    res = rave.Transfer.initiate({
+    "account_bank": "044",
+    "account_number": "0690000044",
+    "amount": 500,
+    "narration": "New transfer",
+    "currency": "NGN",
+    })
+
+    res2 = rave.Transfer.bulk({
+        "title": "test",
+        "bulk_data":[
+        ]
+    })
+    print(res)
+    rave.Transfer.getBalance()
+
+except RaveExceptions.IncompletePaymentDetailsError as e:
+    print(e)
+
+except RaveExceptions.InitiateTransferError as e:
+    print(e.err)
+
+except RaveExceptions.TransferFetchError as e:
+    print(e.err)
+
+except RaveExceptions.ServerError as e:
+    print(e.err)
+
+
+```

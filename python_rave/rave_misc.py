@@ -31,7 +31,7 @@ def getTypeOfArgsRequired(suggestedAuth):
         pin -- This means that the updatePayload call requires a pin. Pin is passed as a string argument to updatePayload\n
         address -- This means that the updatePayload call requires an address dict. The dict must contain "billingzip", "billingcity", "billingaddress", "billingstate", "billingcountry".
     """
-    keywordMap = {"PIN":"pin", "AVS_VBVSECURECODE":"address", "NOAUTH_INTERNATIONAL":"address"}
+    keywordMap = {"PIN": "pin", "AVS_VBVSECURECODE": "address", "NOAUTH_INTERNATIONAL": "address", "AVS_NOAUTH": "address"}
     # Checks if the auth method passed is included in keywordMapping i.e. if it is supported
     if not keywordMap.get(suggestedAuth, None):
         raise AuthMethodNotSupportedError(suggestedAuth)
